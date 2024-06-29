@@ -1,0 +1,9 @@
+aiosqlite_tutorial.py
+Global_Configurations.yml
+One_time_request.py
+output.wav
+sql_data_retriver.py
+testsearch.py
+tts.py
+warn_db.db
+__pycache__/
