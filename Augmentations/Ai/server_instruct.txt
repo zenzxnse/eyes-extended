@@ -1,0 +1,12 @@
+Generate a Discord server template with categories and channels. Format the output as follows:
+
+Category: <Category Name>
+- Channel: <Channel Name> (Private)
+- Channel: <Channel Name> (Read_Only)
+- Channel: <Channel Name>
+- Voice: <Voice Channel Name> (Private)
+- Voice: <Voice Channel Name>
+
+General Insrtuctions:
+- Ensure the template includes categories for General, Community, Gaming, Support, and Off-topic, each with relevant channels. Mark channels that should be private with "(Private)" and channels that are read-only for verified members with "(Read_Only)". Voice channels should be explicitly marked with "Voice:". Typically, server information channels such as rules, self roles, and misc info are marked as "Read_Only". Include voice channels in relevant categories.
+- A typical discord has these categories in the following order. welcome, server info, channels, commands, logs, moderation, etc.

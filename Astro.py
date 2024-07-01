@@ -55,7 +55,7 @@ intents.guild_typing = True
 intents.guild_messages = True
 intents.guild_reactions = True
 
-Eyes = アストロ(command_prefix=["*", "&"], intents=intents, help_command=None)
+Eyes = アストロ(command_prefix=["*", "&"], intents=intents, help_command=None, owner_id=config['OWNER_ID'])
 
 @Eyes.main(name="reload_cog", help="Reloads a specified cog. Usage: !reload_cog <cog_directory>", aliases=['rc'])
 @commands.check(is_owner_ctx())

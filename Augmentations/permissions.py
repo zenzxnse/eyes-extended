@@ -18,6 +18,19 @@ def is_owner_app():
         return False
     return app_commands.check(predicate)
 
+def is_server_owner():
+    async def predicate(interaction: discord.Interaction):
+        if interaction.guild is None:
+            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+            return False
+        if interaction.user.id == interaction.guild.owner_id:
+            return True
+        await interaction.response.send_message("You are not the owner of this server.", ephemeral=True)
+        return False
+    return app_commands.check(predicate)
+
+
+
 if __name__ == "__main__":
     print(is_owner_ctx())
     print(is_owner_app())

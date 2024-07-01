@@ -977,6 +977,7 @@ class EmbedProject(commands.Cog):
                     title TEXT,
                     description TEXT,
                     inline BOOLEAN,
+                    field_id INTEGER,
                     FOREIGN KEY (user_id, embed_name) REFERENCES user_embeds(user_id, embed_name) ON DELETE CASCADE
                 )
             """)
@@ -1022,10 +1023,10 @@ class EmbedProject(commands.Cog):
                     embed.set_image(url=data["image_url"])
 
                 # Retrieve fields for the embed
-                async with db.execute("SELECT title, description, inline FROM embed_fields WHERE user_id = ? AND embed_name = ? ORDER BY rowid", (user_id, embed_name)) as field_cursor:
+                async with db.execute("SELECT field_id, title, description, inline FROM embed_fields WHERE user_id = ? AND embed_name = ? ORDER BY field_id", (user_id, embed_name)) as field_cursor:
                     fields = await field_cursor.fetchall()
                     for field in fields:
-                        embed.add_field(name=field[0], value=field[1], inline=field[2])
+                        embed.add_field(name=field[1], value=field[2], inline=bool(field[3]))
 
                 if include_view:
                     # Retrieve button configurations for this embed that belong to the user
@@ -1052,19 +1053,22 @@ class EmbedProject(commands.Cog):
                 return False, "No button found with the provided ID or you do not own this button."
 
 
-    async def remove_field_from_embed(self, user_id: int, embed_name: str, field_position: int):
+    async def remove_field_from_embed(self, user_id, embed_name, field_id):
         async with aiosqlite.connect(self.db_path) as db:
-            # Remove the field by rowid
+            await db.execute("DELETE FROM embed_fields WHERE user_id = ? AND embed_name = ? AND field_id = ?", (user_id, embed_name, field_id))
             await db.execute("""
-                DELETE FROM embed_fields 
-                WHERE rowid = (SELECT rowid FROM embed_fields WHERE user_id = ? AND embed_name = ? ORDER BY rowid LIMIT 1 OFFSET ?)
-            """, (user_id, embed_name, field_position - 1))
+                UPDATE embed_fields
+                SET field_id = field_id - 1
+                WHERE user_id = ? AND embed_name = ? AND field_id > ?
+            """, (user_id, embed_name, field_id))
             await db.commit()
 
-    async def add_field_to_embed(self, user_id: int, embed_name: str, title: str, description: str = "", inline: bool = True):
+    async def add_field_to_embed(self, user_id: int, embed_name: str, field_id: int, title: str, description: str, inline: bool):
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("INSERT INTO embed_fields (user_id, embed_name, title, description, inline) VALUES (?, ?, ?, ?, ?)", 
-                            (user_id, embed_name, title, description, inline))
+            await db.execute("""
+                INSERT INTO embed_fields (user_id, embed_name, field_id, title, description, inline)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, embed_name, field_id, title, description, int(inline)))
             await db.commit()
             
     async def add_button_info_db(self, user_id, embed_name, button_label, button_style, link=None, emoji=None, role_to_give=None, send_embed=None, custom_message=None, guild_id=None, role_menu_name=None):
@@ -1081,6 +1085,7 @@ class EmbedProject(commands.Cog):
                     role_to_give TEXT,
                     send_embed TEXT,
                     custom_message TEXT,
+                    guild_id INTEGER,
                     role_menu_name TEXT
                 )
             """)
@@ -1096,28 +1101,15 @@ class EmbedProject(commands.Cog):
             await db.commit()
             return custom_id
         
-    async def update_field_in_embed(self, user_id, embed_name, field_position, new_title, new_text):
+    async def update_field_in_embed(self, user_id, embed_name, field_id, new_title, new_text):
         async with aiosqlite.connect(self.db_path) as db:
-            # Fetch the rowid for the field at the given position
-            cursor = await db.execute("""
-                SELECT rowid FROM embed_fields
-                WHERE user_id = ? AND embed_name = ?
-                ORDER BY rowid LIMIT 1 OFFSET ?
-            """, (user_id, embed_name, field_position - 1))
-            result = await cursor.fetchone()
-            if not result:
-                return False  # Field at the given position does not exist
-
-            field_rowid = result[0]
-
-            # Update the field using the rowid
             await db.execute("""
                 UPDATE embed_fields
                 SET title = ?, description = ?
-                WHERE rowid = ?
-            """, (new_title, new_text, field_rowid))
+                WHERE user_id = ? AND embed_name = ? AND field_id = ?
+            """, (new_title, new_text, user_id, embed_name, field_id))
             await db.commit()
-            return True
+            return db.total_changes > 0
         
     async def update_user_embeds(self, user_id: int, embed_name: str, **kwargs):
         set_clause = ", ".join([f"{key} = :{key}" for key in kwargs.keys()])

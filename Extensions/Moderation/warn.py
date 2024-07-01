@@ -9,11 +9,6 @@ class ModWarn(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    #wakin~
-    @commands.Cog.listener()
-    async def on_ready(self):
-        print("ModWarn is online.")
-
     #warn commands
     @app_commands.command(name = "warn", description = "Warn a member.")
     @app_commands.describe(member = "Member to warn.", reason = "Reason of warn.")

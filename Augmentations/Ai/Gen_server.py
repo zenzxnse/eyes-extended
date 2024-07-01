@@ -1,6 +1,6 @@
 from groq import AsyncGroq
-import os
 from Global import config
+from Augmentations.eyehelper import load_instruction
 
 api_keys = [
     config['API_KEYS']['API_KEY_1'],
@@ -10,28 +10,25 @@ api_keys = [
     config['API_KEYS']['API_KEY_5'],
 ]
 
-default_instructions = "You are a 目付き(Eyes) a discord bot, you are working in a confidential environment, keep your responses short and concise, and don't mention your name or mention the user unless it is necessary. only answer relevant questions, and don't make up new information. if you don't know the answer, say so, and don't make up new information. Make sure your answers are within 100 characters only exceeeding 100 characters when absolutely required."
 clients = [AsyncGroq(api_key=key) for key in api_keys]
 client_usage = {i: 0 for i in range(len(clients))}
 
-async def gen_response(history, instructions=default_instructions, command_request=None, user_name=None, user_mention=None):
+async def gen_server(history, instructions='Augmentations/Ai/server_instruct.txt'):
+    instructions = load_instruction(instructions)
+    
+    # Ensure history has a maximum of 5 items
+    if len(history) > 5:
+        history = history[-5:]
+    
     messages = [
         {"role": "system", "content": instructions},
         *history,
     ]
-    if user_name:
-        messages.append({"role": "system", "name": "username", "content": f"user_name: {user_name} This is the name of the user."})
-    if user_mention:
-        messages.append({"role": "system", "name": "user_mention", "content": f"user_id : {user_mention} this is only required for executing commands, mainly the id.]"})
-    if command_request:
-        messages.append({"role": "system", "name": "command_info", "content": command_request})
 
-    # Select the client with the least usage
     client_index = min(client_usage, key=client_usage.get)
     client = clients[client_index]
     client_usage[client_index] += 1
 
-    # Call the Groq API with the constructed messages
     try:
         stream = await client.chat.completions.create(
             model=config['MODEL_ID'],
@@ -42,7 +39,6 @@ async def gen_response(history, instructions=default_instructions, command_reque
             stream=True,
         )
 
-        # Stream the response
         response_message = ""
         async for chunk in stream:
             try:
@@ -59,9 +55,8 @@ async def gen_response(history, instructions=default_instructions, command_reque
         print(f"Failed to generate response: {error_message}")
         client_usage[client_index] -= 1
 
-        # If rate limit is reached, try the next client
         if "Rate limit reached" in error_message:
             next_client_index = (client_index + 1) % len(clients)
-            return await gen_response(history, instructions, command_request, user_name, user_mention)
+            return await gen_server(history, instructions)
 
-        return "An error occurred while generating the response. Please try again later."
+        return "An error occurred while generating the server template. Please try again later."
