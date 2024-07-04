@@ -1,10 +1,10 @@
 Generate a Discord server template with categories and channels. Format the output as follows:
 
 Category: <Category Name>
-- Channel: <Channel Name> (Private) (Read_Only) (No_Threads)
-- Channel: <Channel Name> (Slow_Mode) (NSFW) (File_Upload) (No_Reactions)
-- Voice: <Voice Channel Name> (Private) (Mod_Only) (limit 10)
-- Voice: <Voice Channel Name> (limit 5)
+- Channel: """<Channel Name>""" (Private) (Read_Only) (No_Threads)
+- Channel: """<Channel Name>""" (Slow_Mode) (NSFW) (File_Upload) (No_Reactions)
+- Voice: """<Voice Channel Name>""" (Private) (Mod_Only) (limit 10)
+- Voice: """<Voice Channel Name>""" (limit 5)
 
 General Instructions:
 - Ensure the template includes categories for General, Community, Gaming, Support, and Off-topic, each with relevant channels.

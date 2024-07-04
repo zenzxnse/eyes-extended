@@ -5,6 +5,7 @@ import aiosqlite, aiohttp
 import asyncio, json
 import motor.motor_asyncio
 import traceback, re
+from colorama import Fore, Style
 from urllib.parse import urlparse
 from Extensions.Utility.roles import RoleMenuView  # Import the RoleMenuView class
 # import logging
@@ -134,37 +135,57 @@ class EmbedEditButtons(discord.ui.View):
 
     @discord.ui.button(label="Edit Title", style=discord.ButtonStyle.gray)
     async def edit_title(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(TitleModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = TitleModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Edit Description", style=discord.ButtonStyle.gray)
     async def edit_description(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(DescriptionModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = DescriptionModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
     @discord.ui.button(label="Edit Color", style=discord.ButtonStyle.gray)
     async def edit_color(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ColorModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = ColorModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Edit Image", style=discord.ButtonStyle.gray)
     async def edit_image(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ImageModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = ImageModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
     @discord.ui.button(label="Edit Thumbnail", style=discord.ButtonStyle.gray)
     async def edit_thumbnail(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(ThumbnailModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = ThumbnailModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
     @discord.ui.button(label="Edit Footer", style=discord.ButtonStyle.gray)
     async def edit_footer(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(FooterModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = FooterModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
     @discord.ui.button(label="Edit Author", style=discord.ButtonStyle.gray)
     async def edit_author(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(AuthorModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = AuthorModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
     @discord.ui.button(label="Add field", style=discord.ButtonStyle.gray)
     async def add_field(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(AddFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = AddFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
     @discord.ui.button(label="Remove field", style=discord.ButtonStyle.gray)
     async def remove_field(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(RemoveFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = RemoveFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Edit Field", style=discord.ButtonStyle.gray)
     async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(EditFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message))
+        modal = EditFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
+        await modal.setup()
+        await interaction.response.send_modal(modal)
 
 class ButtonLookView(discord.ui.View):
     def __init__(self, bot, embed_name):
@@ -539,15 +560,26 @@ class AddFieldModal(discord.ui.Modal, title='Add Field'):
             placeholder='Enter field description here... (optional)',
             required=False  # This field is optional
         )
+        self.field_inline = discord.ui.TextInput(
+            label='Should be inline or not?',
+            style=discord.TextStyle.short,
+            placeholder='True (optional by default this is False)',
+            required=False  # This field is optional
+        )
         self.add_item(self.field_description)
+        self.add_item(self.field_inline)
 
     async def on_submit(self, interaction: discord.Interaction):
         field_title = self.field_title.value.strip()
         field_description = self.field_description.value.strip() if self.field_description.value else None
+        if self.field_inline.value.strip() == "True":
+            inline = True
+        else:
+            inline = False
 
         # Add the new field to the embed
         try:
-            await self.bot.get_cog("EmbedProject").add_field_to_embed(interaction.user.id, self.embed_name, field_title, field_description)
+            await self.bot.get_cog("EmbedProject").add_field_to_embed(interaction.user.id, self.embed_name, field_title, field_description, inline)
             embed = await self.bot.get_cog("EmbedProject").retrieve_embed_data(interaction.user.id, self.embed_name)
             if embed:
                 await interaction.response.send_message(embed=embed, view=EmbedEditButtons(self.bot, interaction.user.id, self.embed_name), ephemeral=True)
@@ -570,7 +602,8 @@ class TitleModal(discord.ui.Modal, title='Edit Title'):
             label='Title',
             style=discord.TextStyle.short,
             placeholder='Your Title here... (Type None to remove)',
-            required=False  # Allow users to submit an empty title
+            required=False,  # Allow users to submit an empty title
+            default=""
         )
         self.add_item(self.new_title)
 
@@ -592,6 +625,11 @@ class TitleModal(discord.ui.Modal, title='Edit Title'):
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
 
+    async def setup(self):
+        # Fetch the current title
+        current_title = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "title")
+        self.new_title.default = current_title if current_title else ""
+
 class DescriptionModal(discord.ui.Modal, title='Edit Description'):
     def __init__(self, bot, user_id, embed_name, update_callback):
         super().__init__()
@@ -604,7 +642,8 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
             label='Description',
             style=discord.TextStyle.long,
             placeholder='Your description here...',
-            required=True
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.new_description)
 
@@ -614,7 +653,7 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
             new_description = None  # Set to None to indicate removal of the description
         try:
             await self.bot.get_cog("EmbedProject").update_user_embeds(
-                self.user_id, self.embed_name, description=self.new_description.value
+                self.user_id, self.embed_name, description=new_description
             )
             embed = await self.bot.get_cog("EmbedProject").retrieve_embed_data(self.user_id, self.embed_name)
             if embed:
@@ -624,6 +663,11 @@ class DescriptionModal(discord.ui.Modal, title='Edit Description'):
         except Exception as e:
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
+
+    async def setup(self):
+        # Fetch the current description
+        current_description = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "description")
+        self.new_description.default = current_description if current_description else ""
 
 class ColorModal(discord.ui.Modal, title='Edit Color'):
     def __init__(self, bot, user_id, embed_name, update_callback):
@@ -637,7 +681,8 @@ class ColorModal(discord.ui.Modal, title='Edit Color'):
             label='Color',
             style=discord.TextStyle.short,
             placeholder='Enter the new color: Eg. #ffffff',
-            required=True
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.new_color)
 
@@ -645,7 +690,7 @@ class ColorModal(discord.ui.Modal, title='Edit Color'):
         color_input = self.new_color.value.strip('#')
         try:
             # Validate the color format
-            color_value = int(color_input, 16)
+            color_value = int(color_input, 16) if color_input else 0x2F3136
             await self.bot.get_cog("EmbedProject").update_user_embeds(
                 self.user_id, self.embed_name, color=color_value
             )
@@ -661,6 +706,11 @@ class ColorModal(discord.ui.Modal, title='Edit Color'):
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
 
+    async def setup(self):
+        # Fetch the current color
+        current_color = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "color")
+        self.new_color.default = current_color if current_color else ""
+
 class ImageModal(discord.ui.Modal, title='Edit Image'):
     def __init__(self, bot, user_id, embed_name, update_callback):
         super().__init__()
@@ -673,7 +723,8 @@ class ImageModal(discord.ui.Modal, title='Edit Image'):
             label='Image URL',
             style=discord.TextStyle.short,
             placeholder='Your image URL here...',
-            required=True
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.new_image)
 
@@ -697,6 +748,12 @@ class ImageModal(discord.ui.Modal, title='Edit Image'):
         except Exception as e:
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
+
+    async def setup(self):
+        # Fetch the current image URL
+        current_image = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "image_url")
+        self.new_image.default = current_image if current_image else ""
+
 class ThumbnailModal(discord.ui.Modal, title='Edit Thumbnail'):
     def __init__(self, bot, user_id, embed_name, update_callback):
         super().__init__()
@@ -709,7 +766,8 @@ class ThumbnailModal(discord.ui.Modal, title='Edit Thumbnail'):
             label='Thumbnail URL',
             style=discord.TextStyle.short,
             placeholder='Your thumbnail URL here...',
-            required=True
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.new_thumbnail)
 
@@ -734,6 +792,11 @@ class ThumbnailModal(discord.ui.Modal, title='Edit Thumbnail'):
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
 
+    async def setup(self):
+        # Fetch the current thumbnail URL
+        current_thumbnail = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "thumbnail_url")
+        self.new_thumbnail.default = current_thumbnail if current_thumbnail else ""
+
 class FooterModal(discord.ui.Modal, title='Edit Footer'):
     def __init__(self, bot, user_id, embed_name, update_callback):
         super().__init__()
@@ -742,21 +805,21 @@ class FooterModal(discord.ui.Modal, title='Edit Footer'):
         self.embed_name = embed_name
         self.update_callback = update_callback
 
-        # Footer text input (required)
         self.footer_text = discord.ui.TextInput(
             label='Footer Text',
             style=discord.TextStyle.short,
             placeholder='Enter footer text here...',
-            required=True  # This field is required
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.footer_text)
 
-        # Footer icon URL input (optional)
         self.footer_icon_url = discord.ui.TextInput(
             label='Footer Icon URL',
             style=discord.TextStyle.short,
             placeholder='Enter footer icon URL here... (optional)',
-            required=False  # This field is optional
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.footer_icon_url)
 
@@ -764,12 +827,10 @@ class FooterModal(discord.ui.Modal, title='Edit Footer'):
         footer_text = self.footer_text.value.strip()
         footer_icon_url = self.footer_icon_url.value.strip() if self.footer_icon_url.value else None
 
-        # Check if the user explicitly wants to remove the footer text
         if footer_text.lower() == 'none':
             footer_text = None
             footer_icon_url = None  # Remove the icon URL as well since text is required for the icon
 
-        # Validate the footer icon URL if provided and footer text is not None
         if footer_text and footer_icon_url and not is_valid_url(footer_icon_url):
             await interaction.response.send_message("Invalid URL format for the footer icon. Please enter a valid URL.", ephemeral=True)
             return
@@ -789,6 +850,12 @@ class FooterModal(discord.ui.Modal, title='Edit Footer'):
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
 
+    async def setup(self):
+        # Fetch the current footer text and icon URL
+        current_footer_text = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "footer_text")
+        current_footer_icon = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "footer_icon_url")
+        self.footer_text.default = current_footer_text if current_footer_text else ""
+        self.footer_icon_url.default = current_footer_icon if current_footer_icon else ""
 
 class AuthorModal(discord.ui.Modal, title='Edit Author'):
     def __init__(self, bot, user_id, embed_name, update_callback):
@@ -798,21 +865,21 @@ class AuthorModal(discord.ui.Modal, title='Edit Author'):
         self.embed_name = embed_name
         self.update_callback = update_callback
 
-        # Author text input (required)
         self.author_text = discord.ui.TextInput(
             label='Author Text',
             style=discord.TextStyle.short,
             placeholder='Enter author text here...',
-            required=True  # This field is required
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.author_text)
 
-        # Author icon URL input (optional)
         self.author_icon_url = discord.ui.TextInput(
             label='Author Icon URL',
             style=discord.TextStyle.short,
             placeholder='Enter author icon URL here... (optional)',
-            required=False  # This field is optional
+            required=False,  # This field is optional
+            default=""
         )
         self.add_item(self.author_icon_url)
 
@@ -820,9 +887,8 @@ class AuthorModal(discord.ui.Modal, title='Edit Author'):
         author_text = self.author_text.value.strip()
         author_icon_url = self.author_icon_url.value.strip() if self.author_icon_url.value else None
 
-        # Validate the author icon URL if provided
         if author_icon_url and not is_valid_url(author_icon_url):
-            await interaction.response.send_message("Invalid URL format for the author icon. Please enter a valid URL.", ephemeral=True)
+            await interaction.response.send_message("Invalid URL format for the author icon. Please enter a valid URL.", ephemoral=True)
             return
 
         try:
@@ -839,6 +905,13 @@ class AuthorModal(discord.ui.Modal, title='Edit Author'):
         except Exception as e:
             await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
             traceback.print_exception(type(e), e, e.__traceback__)
+
+    async def setup(self):
+        # Fetch the current author text and icon URL
+        current_author_text = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "author_text")
+        current_author_icon = await self.bot.get_cog("EmbedProject").get_embed_property(self.user_id, self.embed_name, "author_icon_url")
+        self.author_text.default = current_author_text if current_author_text else ""
+        self.author_icon_url.default = current_author_icon if current_author_icon else ""
 
 class DynamicButtonView(discord.ui.View):
     def __init__(self, bot):
@@ -1007,41 +1080,48 @@ class EmbedProject(commands.Cog):
             async with db.execute("SELECT * FROM user_embeds WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as cursor:
                 row = await cursor.fetchone()
                 if not row:
+                    print(f"No embed found with the name '{embed_name}' for the user with ID {user_id}.")
                     return None
-
+                
                 columns = [description[0] for description in cursor.description]
                 data = dict(zip(columns, row))
-
-                embed = discord.Embed(title=data["title"], description=data["description"], color=data["color"])
-                if data["footer_text"]:
-                    embed.set_footer(text=data["footer_text"], icon_url=data["footer_icon_url"])
-                if data["author_text"]:
-                    embed.set_author(name=data["author_text"], icon_url=data["author_icon_url"])
-                if data["thumbnail_url"]:
+                
+                # Always create an embed with at least a description
+                embed = discord.Embed(
+                    title=data.get("title") or "",
+                    description=data.get("description") or f"This embed '{embed_name}' is empty. Add some properties to it.",
+                    color=data.get("color") or 0
+                )
+                
+                if data.get("footer_text"):
+                    embed.set_footer(text=data["footer_text"], icon_url=data.get("footer_icon_url"))
+                if data.get("author_text"):
+                    embed.set_author(name=data["author_text"], icon_url=data.get("author_icon_url"))
+                if data.get("thumbnail_url"):
                     embed.set_thumbnail(url=data["thumbnail_url"])
-                if data["image_url"]:
+                if data.get("image_url"):
                     embed.set_image(url=data["image_url"])
 
-                # Retrieve fields for the embed
-                async with db.execute("SELECT field_id, title, description, inline FROM embed_fields WHERE user_id = ? AND embed_name = ? ORDER BY field_id", (user_id, embed_name)) as field_cursor:
-                    fields = await field_cursor.fetchall()
-                    for field in fields:
-                        embed.add_field(name=field[1], value=field[2], inline=bool(field[3]))
+            # Retrieve fields for the embed
+            async with db.execute("SELECT field_id, title, description, inline FROM embed_fields WHERE user_id = ? AND embed_name = ? ORDER BY field_id", (user_id, embed_name)) as field_cursor:
+                fields = await field_cursor.fetchall()
+                for field in fields:
+                    embed.add_field(name=field[1] or "\u200b", value=field[2] or "\u200b", inline=bool(field[3]))
 
-                if include_view:
-                    # Retrieve button configurations for this embed that belong to the user
-                    async with aiosqlite.connect('db/buttons.db') as button_db:
-                        async with button_db.execute("SELECT * FROM buttons WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as button_cursor:
-                            buttons = await button_cursor.fetchall()
-                            view = discord.ui.View()
-                            for button in buttons:
-                                button_data = dict(zip([description[0] for description in button_cursor.description], button))
-                                # Convert custom_id to string
-                                button_data['custom_id'] = str(button_data['custom_id'])
-                                view.add_item(DynamicButton(button_data, self.bot))
-                    return embed, view
-                else:
-                    return embed
+        if include_view:
+            # Retrieve button configurations for this embed that belong to the user
+            async with aiosqlite.connect('db/buttons.db') as button_db:
+                async with button_db.execute("SELECT * FROM buttons WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as button_cursor:
+                    buttons = await button_cursor.fetchall()
+                    view = discord.ui.View()
+                    for button in buttons:
+                        button_data = dict(zip([description[0] for description in button_cursor.description], button))
+                        # Convert custom_id to string
+                        button_data['custom_id'] = str(button_data['custom_id'])
+                        view.add_item(DynamicButton(button_data, self.bot))
+            return embed, view
+        else:
+            return embed
                 
     async def delete_button_info_db(self, user_id: int, custom_id: str):
         async with aiosqlite.connect('db/buttons.db') as db:
@@ -1051,26 +1131,65 @@ class EmbedProject(commands.Cog):
                 return True, "Button deleted successfully."
             else:
                 return False, "No button found with the provided ID or you do not own this button."
-
+            
+    async def get_embed_property(self, user_id: int, embed_name: str, property_name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(f"SELECT {property_name} FROM user_embeds WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as cursor:
+                result = await cursor.fetchone()
+                if result:
+                    return result[0]
+                return None
 
     async def remove_field_from_embed(self, user_id, embed_name, field_id):
         async with aiosqlite.connect(self.db_path) as db:
+            # First, delete the specified field
             await db.execute("DELETE FROM embed_fields WHERE user_id = ? AND embed_name = ? AND field_id = ?", (user_id, embed_name, field_id))
-            await db.execute("""
-                UPDATE embed_fields
-                SET field_id = field_id - 1
-                WHERE user_id = ? AND embed_name = ? AND field_id > ?
-            """, (user_id, embed_name, field_id))
+            
+            # Fetch all remaining fields for this embed, ordered by their current field_id
+            async with db.execute("SELECT field_id FROM embed_fields WHERE user_id = ? AND embed_name = ? ORDER BY field_id", (user_id, embed_name)) as cursor:
+                remaining_fields = await cursor.fetchall()
+            
+            # Update the field_ids to ensure they are consecutive
+            for new_id, (old_id,) in enumerate(remaining_fields, start=1):
+                await db.execute("""
+                    UPDATE embed_fields
+                    SET field_id = ?
+                    WHERE user_id = ? AND embed_name = ? AND field_id = ?
+                """, (new_id, user_id, embed_name, old_id))
+            
             await db.commit()
-
-    async def add_field_to_embed(self, user_id: int, embed_name: str, field_id: int, title: str, description: str, inline: bool):
+    async def get_embed_fields(self, user_id: int, embed_name: str):
         async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT field_id, title, description, inline 
+                FROM embed_fields 
+                WHERE user_id = ? AND embed_name = ? 
+                ORDER BY field_id
+            """, (user_id, embed_name)) as cursor:
+                fields = await cursor.fetchall()
+        
+        return [
+            {
+                'id': field[0],
+                'name': field[1],
+                'value': field[2],
+                'inline': bool(field[3])
+            }
+            for field in fields
+        ]
+    async def add_field_to_embed(self, user_id: int, embed_name: str, title: str, description: str, inline: bool = False):
+        async with aiosqlite.connect(self.db_path) as db:
+            # Get the next available field_id
+            async with db.execute("SELECT MAX(field_id) FROM embed_fields WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as cursor:
+                result = await cursor.fetchone()
+                field_id = (result[0] or 0) + 1
+
             await db.execute("""
                 INSERT INTO embed_fields (user_id, embed_name, field_id, title, description, inline)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, embed_name, field_id, title, description, int(inline)))
             await db.commit()
-            
+                
     async def add_button_info_db(self, user_id, embed_name, button_label, button_style, link=None, emoji=None, role_to_give=None, send_embed=None, custom_message=None, guild_id=None, role_menu_name=None):
         async with aiosqlite.connect('db/buttons.db') as db:
             await db.execute("""
@@ -1458,7 +1577,8 @@ class EmbedProject(commands.Cog):
                 await ctx.send("No embed found with that name.", ephemeral=True)
         except Exception as e:
             # logging.error(f"Error displaying embed {embed_name}: {str(e)}")
-            await ctx.send("Failed to display the embed.", ephemeral=True)
+            await ctx.send("Failed to display the embed", ephemeral=True)
+            print(f"{Fore.RED}Error displaying embed {embed_name}: {str(e)}")
 
     @embed.command(name="list", description="List your saved embeds")
     async def my_embeds(self, interaction: discord.Interaction):

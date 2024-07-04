@@ -9,6 +9,7 @@ from Extensions.Utility.embed import DynamicButtonView
 from Extensions.Commands.textpersistent import Testview
 from colorama import Fore, Style
 from Augmentations.permissions import is_owner_ctx, is_owner_app
+from Augmentations.Optimizations.Execute_template import VerifyButton
 import os
 
 AUTO_SHARDING = False
@@ -30,7 +31,12 @@ class アストロ(commands.AutoShardedBot):
         await dynamic_button_view.load_all_buttons()  # load all buttons first
         self.add_view(dynamic_button_view)
         self.add_view(Testview())
+        
+        # Add the persistent VerifyButton view
+        self.add_view(VerifyButton())
+        
         print(f"{Fore.GREEN}Views Added{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}Bot is ready!{Style.RESET_ALL}")
         
     def main(self, *args, **kwargs):
         return self.command(*args, **kwargs)
@@ -116,6 +122,18 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
         await interaction.response.send_message(f"Sorry, an error had occured.\nIf you are facing any issues with me you can always send your </feedback:1027218853127794780>.", ephemeral = True)
         raise error
 
-
+@Eyes.command(name="kick", help="Kick a user from the server.")
+@commands.check(is_owner_ctx())
+async def kick(ctx, member: discord.Member):
+    await ctx.guild.kick(member)
+    await ctx.send(f"Kicked {member.mention} from the server.")
+    
+    
+@kick.error
+async def kick_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("You don't have the required permissions to kick members.")
+    else:
+        await ctx.send(f"An error occurred: {error}")
 
 Eyes.run(config['トークン'])

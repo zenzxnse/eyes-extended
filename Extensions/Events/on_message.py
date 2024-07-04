@@ -5,6 +5,7 @@ from Augmentations.eyehelper import load_instruction
 from Augmentations.Optimizations.Eyes_commands import perform_search, process_embed_command
 from Extensions.Utility.embed import EmbedProject
 import time, re
+from colorama import Fore, Style
 
 COOLDOWN_TIME = 2
 MAX_HISTORY = 10
@@ -18,6 +19,17 @@ class OnMessage(commands.Cog):
         self.instructions = load_instruction("Augmentations/Ai/basic_instructions.txt")
         self.embed_project = EmbedProject(bot)
 
+    def update_channel_history(self, channel_id, role, content):
+        if channel_id not in self.channel_histories:
+            self.channel_histories[channel_id] = []
+        
+        self.channel_histories[channel_id].append({"role": role, "content": content})
+        
+        if len(self.channel_histories[channel_id]) > MAX_HISTORY:
+            self.channel_histories[channel_id].pop(0)
+        
+        print(f"{Fore.GREEN}Updated history for channel {channel_id}: {self.channel_histories[channel_id]}{Style.RESET_ALL}")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.id == 717037473401667634 and message.content.startswith("gg"):
@@ -29,25 +41,20 @@ class OnMessage(commands.Cog):
             query = query.group(1) if query else message.content[8:].strip()
             query = query[:200]  # Limit query to 200 characters
 
+            print(Fore.CYAN + f"Search query: {query}" + Style.RESET_ALL)
+
             result = await perform_search(query)
             
-            channel_id = message.channel.id
-            if channel_id not in self.channel_histories:
-                self.channel_histories[channel_id] = []
-            
-            self.channel_histories[channel_id].append({"role": "user", "content": f"*search {query}"})
+            self.update_channel_history(message.channel.id, "user", f"*search {query}")
             
             if isinstance(result, tuple) and len(result) == 2:
                 response, embed = result
-                self.channel_histories[channel_id].append({"role": "assistant", "content": response})
+                self.update_channel_history(message.channel.id, "assistant", response)
                 await message.channel.send(response, embed=embed)
             else:
                 response = str(result)
-                self.channel_histories[channel_id].append({"role": "assistant", "content": response})
+                self.update_channel_history(message.channel.id, "assistant", response)
                 await message.channel.send(response)
-            
-            while len(self.channel_histories[channel_id]) > MAX_HISTORY:
-                self.channel_histories[channel_id].pop(0)
             
             return
 
@@ -79,30 +86,25 @@ class OnMessage(commands.Cog):
             # Update the last interaction time for the user
             self.user_cooldowns[user_id] = current_time
 
-            channel_id = message.channel.id
-            if channel_id not in self.channel_histories:
-                self.channel_histories[channel_id] = []
-
             if message.content.strip() == f"<@{self.bot.user.id}>":
                 await message.reply("Info on how to use the bot\n```None```", mention_author=False)
             else:
                 async with message.channel.typing():
-                    self.channel_histories[channel_id].append({"role": "user", "content": message.content})
-                    
-                    if len(self.channel_histories[channel_id]) > MAX_HISTORY:
-                        self.channel_histories[channel_id].pop(0)
+                    self.update_channel_history(message.channel.id, "user", message.content)
                     
                     response = await gen_response(
                         instructions=self.instructions,
-                        history=self.channel_histories[channel_id],
+                        history=self.channel_histories[message.channel.id],
                         user_name=message.author.name,
                         user_mention=f"<@{message.author.id}>"
                     )
-                    self.channel_histories[channel_id].append({"role": "assistant", "content": response})
-                    if len(self.channel_histories[channel_id]) > MAX_HISTORY:
-                        self.channel_histories[channel_id].pop(0)
+                    self.update_channel_history(message.channel.id, "assistant", response)
                     for i in range(0, len(response), 2000):
                         await message.reply(response[i:i+2000], mention_author=False)
-                    
+        else:
+            # Track all messages in channels where the bot has been active
+            if message.channel.id in self.channel_histories:
+                self.update_channel_history(message.channel.id, "user", message.content)
+
 async def setup(bot):
     await bot.add_cog(OnMessage(bot))

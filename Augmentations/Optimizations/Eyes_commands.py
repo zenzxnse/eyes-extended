@@ -20,6 +20,7 @@ async def process_embed_command(message, command, embed_project, instructions):
     # Extract embed properties
     title_match = re.search(r'\[title \{-m (.*?)\}\]', command)
     description_match = re.search(r'\[description \{-m (.*?)\}\]', command)
+    color_match = re.search(r'\[color \{-h ([A-Fa-f0-9]{6})\}\]', command)
     thumbnail_match = re.search(r'\[thumbnail \{-l (.*?)\}\]', command)
     image_match = re.search(r'\[image \{-l (.*?)\}\]', command)
     footer_text_match = re.search(r'\[footer_text \{-m (.*?)\}\]', command)
@@ -30,13 +31,15 @@ async def process_embed_command(message, command, embed_project, instructions):
     name_match = re.search(r'-n "(.*?)"', command)
     user_match = re.search(r'-u <@(\d+)>', command)
 
-    print(f"Matches - Title: {title_match}, Description: {description_match}, Name: {name_match}, User: {user_match}")
+    print(f"Matches - Title: {title_match}, Description: {description_match}, Name: {name_match}, User: {user_match}, Color: {color_match}")
     print(f"Field matches: {field_matches}")
 
     if not (title_match and name_match and user_match):
         await message.channel.send("Invalid embed command format.")
         return
 
+    color = int(color_match.group(1), 16) if color_match else None
+    
     title = title_match.group(1).replace('\\n', '\n')
     description = description_match.group(1).replace('\\n', '\n') if description_match else ""
     thumbnail = thumbnail_match.group(1) if thumbnail_match else None
@@ -61,6 +64,7 @@ async def process_embed_command(message, command, embed_project, instructions):
         "footer_icon_url": footer_icon,
         "author_text": author_text,
         "author_icon_url": author_icon,
+        "color": color
     }
 
     print(f"Embed data: {embed_data}")
@@ -95,11 +99,11 @@ async def process_embed_command(message, command, embed_project, instructions):
         print(f"Embed saved successfully for user {user_id}")
 
         # Add fields using the add_field_to_embed method
-        for index, field_match in enumerate(field_matches, start=1):
+        for field_match in field_matches:
             field_name = field_match[0][:256]  # Limit to 256 characters (Discord's limit)
             field_value = field_match[1][:1024]  # Limit to 1024 characters
             field_inline = bool(int(field_match[2]))
-            await embed_project.add_field_to_embed(user_id, embed_name, index, field_name, field_value, field_inline)
+            await embed_project.add_field_to_embed(user_id, embed_name, field_name, field_value, field_inline)
     
         print(f"Fields added successfully")
     except Exception as e:

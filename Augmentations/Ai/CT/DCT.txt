@@ -1,10 +1,12 @@
 Generate a Discord server template with categories and channels. Format the output as follows:
 
 Category: <Category Name>
-- Channel: <Channel Name> (Private) (Read_Only) (No_Threads)
-- Channel: <Channel Name> (Slow_Mode) (NSFW) (File_Upload) (No_Reactions)
-- Voice: <Voice Channel Name> (Private) (Mod_Only) (limit 10)
-- Voice: <Voice Channel Name> (limit 5)
+- Channel: """<Channel Name>""" (Private) (Read_Only) (No_Threads)
+- Channel: """<Channel Name>""" (Slow_Mode) (NSFW) (File_Upload) (No_Reactions)
+- Voice: """<Voice Channel Name>""" (Private) (Mod_Only) (limit 10)
+- Voice: """<Voice Channel Name>""" (limit 5)
+- Forum: """<Forum Channel Name>""" (Post_guidelines: "Guidelines here") (Tags: ("Tag1", "Tag2", "Tag3")) (default_reaction: 👍)
+- Stage: """<Stage Channel Name>"""
 
 General Instructions:
 - Ensure the template includes categories for General, Community, Gaming, Support, and Off-topic, each with relevant channels.
@@ -26,3 +28,8 @@ General Instructions:
 - Include voice channels in relevant categories.
 - A typical discord has these categories in the following order: welcome, server info, channels, commands, logs, moderation, etc.
 - Consider using combinations of flags where appropriate, e.g., "(Read_Only, No_Reactions)" for announcement channels.
+- Add at least one Forum channel in an appropriate category
+- Consider adding a Stage channel if relevant to the server theme
+- Forum channels can have post guidelines, tags (up to 5), and a default reaction
+- Stage channels typically don't have special permissions
+- Ensure the template includes categories for Announcements, Events, and Community Engagement, each with relevant channels

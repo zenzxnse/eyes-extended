@@ -1,0 +1,60 @@
+Generate a Discord server template with categories and channels. Format the output as follows:
+
+Category: <Category Name>
+- Channel: """<Channel Name>""" (Private) (Read_Only) (No_Threads)
+- Channel: """<Channel Name>""" (Slow_Mode) (NSFW) (File_Upload) (No_Reactions)
+- Voice: """<Voice Channel Name>""" (Private) (Mod_Only) (limit 10)
+- Voice: """<Voice Channel Name>""" (limit 5)
+- Forum: """<Forum Channel Name>""" (Post_guidelines: "Guidelines here") (Tags: ("Tag1", "Tag2", "Tag3")) (default_reaction: 👍)
+- Stage: """<Stage Channel Name>"""
+
+General Instructions:
+- Use an appropriate emoji followed by the pipe symbol "┊" before each channel name (e.g., """💬┊general""")
+- Use lowercase letters for channel names, avoiding hyphens (e.g., """📢┊announcements""")
+- Include categories similar to the image: IMPORTANT, PRISMGPT, COMMUNITY
+- Ensure the template includes relevant channels for each category
+- Use the following flags to set special permissions (multiple flags can be used for a single channel):
+  - (Private): Only visible to specific roles
+  - (Read_Only): Members can read but not write
+  - (Mod_Only): Only visible to moderators
+  - (No_Threads): Disables thread creation
+  - (Slow_Mode): Enables slow mode (30 seconds)
+  - (NSFW): Marks the channel as NSFW
+  - (File_Upload): Allows file uploads
+  - (No_Reactions): Disables reactions
+  - (limit X): Sets a user limit for voice channels, where X is the maximum number of users
+- Voice channels can have a (limit X) flag to set the maximum number of users
+- Voice channels can only be (Mod_Only), not (Read_Only)
+- Mark channels that should be private with "(Private)" and channels that are read-only for verified members with "(Read_Only)"
+- Voice channels should be explicitly marked with "Voice:"
+- Typically, server information channels such as rules and announcements are marked as "Read_Only"
+- Include voice channels in relevant categories
+- Consider using combinations of flags where appropriate, e.g., "(Read_Only, No_Reactions)" for announcement channels
+- Add at least one Forum channel in an appropriate category
+- Consider adding a Stage channel if relevant to the server theme
+- Forum channels can have post guidelines, tags (up to 5), and a default reaction
+- Stage channels typically don't have special permissions
+- Ensure the template includes categories for Announcements, Events, and Community Engagement, each with relevant channels
+
+Example channel names:
+- Channel: """📜┊rules""" (Read_Only)
+- Channel: """📢┊updates"""
+- Channel: """💬┊general"""
+- Channel: """🎮┊playground"""
+- Voice: """🎤┊voice chat""" (limit 10)
+- Forum: """💡┊ideas""" (Post_guidelines: "Share your ideas for the community!") (Tags: ("Feature", "Event", "Improvement", "Question", "Other")) (default_reaction: 👍)
+- Stage: """🎭┊community talks"""
+
+Note: Create a compact and well-organized server structure using text, voice, forum, and stage channels with the pipe separator naming convention. Arrange categories in a logical order, starting with important information and progressing to more specific or casual channels. The unique naming style should be consistent across all channel types, including forum and stage channels. Use emojis that are relevant to the channel's purpose to enhance visual organization and navigation while maintaining a clean, compact appearance.
+
+Additional suggestions:
+- Channel: """🤖┊bot commands"""
+- Channel: """🎉┊events"""
+- Channel: """🆘┊support"""
+- Channel: """🔧┊moderation""" (Mod_Only)
+- Channel: """📊┊polls"""
+- Channel: """🖼️┊media"""
+- Voice: """🎵┊music""" (limit 5)
+- Forum: """🚀┊projects""" (Post_guidelines: "Share and discuss community projects here!") (Tags: ("In Progress", "Completed", "Help Wanted", "Collaboration", "Showcase")) (default_reaction: 🚀)
+
+Remember to adapt the channel names and categories to fit the specific needs and theme of the server while maintaining the compact pipe naming convention.

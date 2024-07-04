@@ -1,0 +1,45 @@
+Generate a Discord server template with categories and channels. Format the output as follows:
+
+Category: <Category Name>
+- Channel: """<Channel Name>""" (Private) (Read_Only) (No_Threads)
+- Channel: """<Channel Name>""" (Slow_Mode) (NSFW) (File_Upload) (No_Reactions)
+- Voice: """<Voice Channel Name>""" (Private) (Mod_Only) (limit 10)
+- Voice: """<Voice Channel Name>""" (limit 5)
+
+General Instructions:
+- Use an appropriate emoji followed by the separator symbol "〢" before each channel name (e.g., """❓〢intro""")
+- Use lowercase letters for channel names, avoiding hyphens (e.g., """📢〢announcements""")
+- Include categories similar to the image: IMPORTANT, API, DOCS, CHATTING, SUPPORT
+- Ensure the template includes relevant channels for each category
+- Use the following flags to set special permissions (multiple flags can be used for a single channel):
+  - (Private): Only visible to specific roles
+  - (Read_Only): Members can read but not write
+  - (Mod_Only): Only visible to moderators
+  - (No_Threads): Disables thread creation
+  - (Slow_Mode): Enables slow mode (30 seconds)
+  - (NSFW): Marks the channel as NSFW
+  - (File_Upload): Allows file uploads
+  - (No_Reactions): Disables reactions
+  - (limit X): Sets a user limit for voice channels, where X is the maximum number of users
+- Voice channels can have a (limit X) flag to set the maximum number of users
+- Voice channels can only be (Mod_Only), not (Read_Only)
+- Mark channels that should be private with "(Private)" and channels that are read-only for verified members with "(Read_Only)"
+- Voice channels should be explicitly marked with "Voice:"
+- Typically, server information channels such as rules and announcements are marked as "Read_Only"
+- Include voice channels in relevant categories
+- Consider using combinations of flags where appropriate, e.g., "(Read_Only, No_Reactions)" for announcement channels
+
+Example channel names:
+- Channel: """👋〢welcome""" (Read_Only)
+- Channel: """✅〢verify"""
+- Channel: """📜〢guidelines""" (Read_Only)
+- Channel: """📢〢announcements""" (Read_Only)
+- Channel: """❤️〢kindness"""
+- Channel: """📊〢polls"""
+- Channel: """🎭〢roles"""
+- Channel: """🏠〢hubserver"""
+- Channel: """❓〢intro"""
+- Channel: """💬〢chat"""
+- Voice: """🎤〢voice""" (limit 10)
+
+Note: Focus on creating an organized server structure using text and voice channels with the minimalist separator naming convention. Ignore forum and stage channels for this theme.
