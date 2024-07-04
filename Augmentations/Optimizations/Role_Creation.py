@@ -24,44 +24,6 @@ class ConfirmView(discord.ui.View):
 
 
 
-def role_rep_to_dict(ai_response: str) -> dict:
-    print("Converting AI response to role dictionary...")
-    roles_dict = {}
-    pattern = r"Role: {name: (.+)} {Hex: (#[0-9A-Fa-f]{6})} {permission: (.+)}"
-    matches = re.findall(pattern, ai_response)
-    
-    # Extract categories
-    categories = re.findall(r"\*\*(.*?)\*\*", ai_response)
-    
-    # If no categories are found, create a default category
-    if not categories:
-        categories = ["Generated Roles"]
-    
-    for category in categories:
-        roles_dict[category] = []
-    
-    current_category = categories[0]  # Set the initial category
-    
-    for name, hex_color, permission in matches:
-        # If there's only one category, use it for all roles
-        if len(categories) == 1:
-            current_category = categories[0]
-        else:
-            # Find the category for this role
-            for i, category in enumerate(categories):
-                if ai_response.index(f"Role: {{name: {name}}}") > ai_response.index(f"**{category}**"):
-                    current_category = category
-        
-        roles_dict[current_category].append({
-            "name": name,
-            "color": int(hex_color[1:], 16),
-            "permission": permission
-        })
-        print(f"Added role: {name} to category: {current_category}")
-    
-    print("Role dictionary creation complete.")
-    return roles_dict
-
 async def show_roles(ai_response: str):
     print("Preparing to show generated roles...")
     embed = discord.Embed(title="Generated Roles", color=discord.Color.blue())
@@ -70,18 +32,12 @@ async def show_roles(ai_response: str):
     categories = re.findall(r"\*\*(.*?)\*\*", ai_response)
     roles = re.findall(r"Role: {name: (.+)} {Hex: (#[0-9A-Fa-f]{6})} {permission: (.+)}", ai_response)
     
-    # If no categories are found, create a default category
-    if not categories:
-        categories = ["Generated Roles"]
-    
     for category in categories:
         category_roles = []
         for role in roles:
-            if len(categories) == 1 or categories.index(category) == len(categories) - 1 or \
-               (ai_response.index(f"Role: {{name: {role[0]}}}") > ai_response.index(f"**{category}**") and 
-                (categories.index(category) == len(categories) - 1 or 
-                 ai_response.index(f"Role: {{name: {role[0]}}}") < ai_response.index(f"**{categories[categories.index(category)+1]}**"))):
-                category_roles.append(role)
+            if ai_response.index(f"Role: {{name: {role[0]}}}") > ai_response.index(f"**{category}**"):
+                if ai_response.index(f"Role: {{name: {role[0]}}}") < ai_response.index(f"**{categories[categories.index(category)+1]}**") if categories.index(category) < len(categories)-1 else True:
+                    category_roles.append(role)
         
         if category_roles:
             role_list = "\n".join([f"• {role[0]} - {role[2].capitalize()} ({role[1]})" for role in category_roles])
@@ -94,7 +50,37 @@ async def show_roles(ai_response: str):
     print("Roles embed and view created.")
     return embed, view
 
-async def create_roles(guild: discord.Guild, roles_dict: dict, put_after: discord.Role = None, put_before: discord.Role = None):
+def role_rep_to_dict(ai_response: str) -> dict:
+    print("Converting AI response to role dictionary...")
+    roles_dict = {}
+    pattern = r"Role: {name: (.+)} {Hex: (#[0-9A-Fa-f]{6})} {permission: (.+)}"
+    matches = re.findall(pattern, ai_response)
+    
+    # Extract categories
+    categories = re.findall(r"\*\*(.*?)\*\*", ai_response)
+    
+    for category in categories:
+        roles_dict[category] = []
+    
+    for name, hex_color, permission in matches:
+        # Find the category for this role
+        for i, category in enumerate(categories):
+            if ai_response.index(f"Role: {{name: {name}}}") > ai_response.index(f"**{category}**"):
+                if i == len(categories) - 1 or ai_response.index(f"Role: {{name: {name}}}") < ai_response.index(f"**{categories[i+1]}**"):
+                    current_category = category
+                    break
+        
+        roles_dict[current_category].append({
+            "name": name,
+            "color": int(hex_color[1:], 16),
+            "permission": permission
+        })
+        print(f"Added role: {name} to category: {current_category}")
+    
+    print("Role dictionary creation complete.")
+    return roles_dict
+
+async def create_roles(guild: discord.Guild, roles_dict: dict):
     print("Starting bulk role creation process...")
     all_roles = []
     for category, roles in roles_dict.items():
@@ -128,61 +114,23 @@ async def create_roles(guild: discord.Guild, roles_dict: dict, put_after: discor
 
     return all_roles
 
-async def execute_roles(guild: discord.Guild, roles_dict: dict, put_after: discord.Role = None, put_before: discord.Role = None):
+async def execute_roles(guild: discord.Guild, roles_dict: dict):
     print("Starting role creation process...")
     all_roles = await create_roles(guild, roles_dict)
     
-    if put_after:
-        position = put_after.position + 1
-    elif put_before:
-        position = put_before.position
-    else:
-        position = 1  # Default to just above @everyone
-
     created_roles = []
-    for role in all_roles:
-        try:
-            created_role = await guild.create_role(**role)
-            await created_role.edit(position=position)
-            created_roles.append(created_role)
-            print(f"Created and positioned role: {created_role.name} at position {position}")
-            position += 1
-            await asyncio.sleep(0.5)  # Wait 0.5 seconds between role creations
-        except discord.HTTPException as e:
-            print(f"Failed to create or position role {role['name']}: {e}")
-    
-    print(f"Role creation process complete. Created {len(created_roles)} roles.")
+    chunk_size = 4  # Create 4 roles at a time
+    for i in range(0, len(all_roles), chunk_size):
+        chunk = all_roles[i:i+chunk_size]
+        tasks = [guild.create_role(**role) for role in chunk]
+        created_chunk = await asyncio.gather(*tasks)
+        created_roles.extend(created_chunk)
+        print(f"Created {len(created_chunk)} roles. Total: {len(created_roles)}/{len(all_roles)}")
+        if i + chunk_size < len(all_roles):
+            await asyncio.sleep(0.5)  # Wait 1 second between batches
+
+    print(f"Bulk role creation process complete. Created {len(created_roles)} roles.")
     return created_roles
-
-async def position_roles(guild: discord.Guild, created_roles: list, put_after: discord.Role = None, put_before: discord.Role = None):
-    print("Positioning roles...")
-    bot_member = guild.get_member(guild.me.id)
-    bot_highest_role_position = bot_member.top_role.position
-
-    if put_after:
-        role_position = put_after.position + 1
-    elif put_before:
-        role_position = put_before.position
-    else:
-        return  # No positioning needed
-
-    if role_position >= bot_highest_role_position:
-        print("Cannot place the new roles after or before a role higher or equal to the bot's highest role.")
-        return
-
-    try:
-        for i, role in enumerate(reversed(created_roles)):
-            new_position = role_position + i
-            if new_position < bot_highest_role_position:
-                await role.edit(position=new_position, reason="Setting role position via generate_roles command.")
-                print(f"Positioned role {role.name} at position {new_position}")
-            else:
-                print(f"Skipped positioning role {role.name} as it would be higher than the bot's highest role")
-        print("Roles positioned successfully")
-    except discord.HTTPException as e:
-        print(f"Failed to position roles: {e}")
-
-    print("Role positioning complete.")
 
 async def delete_roles_efficiently(guild: discord.Guild):
     print("Starting efficient role deletion process...")
