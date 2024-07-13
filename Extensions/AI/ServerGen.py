@@ -7,10 +7,20 @@ from Augmentations.Optimizations.Execute_template import show_template, execute_
 
 class ServerGen(commands.Cog):
     def __init__(self, bot):
+        """
+        Initializes the ServerGen object with the given bot instance, loads default and community themes,
+        and sets the last generated template to None.
+
+        Parameters:
+            bot: The Discord bot instance.
+
+        Return:
+            None
+        """
         self.bot = bot
         self.default_themes = self.load_themes('DT')
         self.community_themes = self.load_themes('CT')
-        self.last_generated_template = None  # Add this line to store the last generated template
+        self.last_generated_template = None  
 
     def load_themes(self, folder):
         themes = {}
@@ -25,7 +35,7 @@ class ServerGen(commands.Cog):
         return [
             app_commands.Choice(name=category.name, value=str(category.id))
             for category in categories if current.lower() in category.name.lower()
-        ][:25]  # Discord limits autocomplete to 25 choices
+        ][:25]  # limiting to discord's limit
 
     async def default_theme_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         return [

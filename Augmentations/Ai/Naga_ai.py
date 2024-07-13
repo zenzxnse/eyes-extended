@@ -4,7 +4,7 @@ from Global import config
 
 
 openai_client = AsyncOpenAI(
-    api_key = config['API_KEYS']['NAGA_KEY'],
+    api_key = config['API_KEYS']['NAGA_KEY_1'],
     base_url = "https://api.naga.ac/v1"
 )
 default_instructions = "You are a 目付き(Eyes) a discord bot, you are working in a confidential environment, keep your responses short and concise, and don't mention your name or mention the user unless it is necessary. only answer relevant questions, and don't make up new information. if you don't know the answer, say so, and don't make up new information."
@@ -14,7 +14,7 @@ async def gen_response(history, instructions=default_instructions):
             *history,
         ]
     response = await openai_client.chat.completions.create(
-        model=config['MODEL_ID'],
+        model=config['NAGA_MODEL_ID'],
         messages=messages
     )
     message = response.choices[0].message.content

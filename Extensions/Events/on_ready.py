@@ -7,30 +7,30 @@ import random
 import asyncio
 import requests
 
-# NAGA_KEY = config['API_KEYS']['NAGA_KEY']
+NAGA_KEY = config['API_KEYS']['NAGA_KEY_1']
 
-# def fetch_chat_models():
-#     models = []
-#     headers = {
-#         'Authorization': f'Bearer {NAGA_KEY}',
-#         'Content-Type': 'application/json'
-#     }
+def fetch_chat_models():
+    models = []
+    headers = {
+        'Authorization': f'Bearer {NAGA_KEY}',
+        'Content-Type': 'application/json'
+    }
 
-#     response = requests.get('https://api.naga.ac/v1/models', headers=headers)
-#     if response.status_code == 200:
-#         ModelsData = response.json()
-#         models.extend(
-#             model['id']
-#             for model in ModelsData.get('data')
-#             if "max_images" not in model
-#         )
-#     else:
-#         print(f"Failed to fetch chat models. Status code: {response.status_code}")
+    response = requests.get('https://api.naga.ac/v1/models', headers=headers)
+    if response.status_code == 200:
+        ModelsData = response.json()
+        models.extend(
+            model['id']
+            for model in ModelsData.get('data')
+            if "max_images" not in model
+        )
+    else:
+        print(f"Failed to fetch chat models. Status code: {response.status_code}")
 
-#     return models
+    return models
 
-# chat_models = fetch_chat_models()
-# model_blob = "\n".join(chat_models)
+chat_models = fetch_chat_models()
+model_blob = "\n".join(chat_models)
 
 NUMBERS = {
     0 : "零",

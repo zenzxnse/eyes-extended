@@ -28,11 +28,11 @@ class アストロ(commands.AutoShardedBot):
         print(f"{Fore.GREEN}Synced {len(synced)} commands{Style.RESET_ALL}")
         print(f"{Fore.GREEN}Adding views...{Style.RESET_ALL}")
         dynamic_button_view = DynamicButtonView(self)
-        await dynamic_button_view.load_all_buttons()  # load all buttons first
+        await dynamic_button_view.load_all_buttons()  # we load all buttons first
         self.add_view(dynamic_button_view)
         self.add_view(Testview())
         
-        # Add the persistent VerifyButton view
+        # make things persistent
         self.add_view(VerifyButton())
         
         print(f"{Fore.GREEN}Views Added{Style.RESET_ALL}")
