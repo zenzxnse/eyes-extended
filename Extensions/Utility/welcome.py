@@ -1,11 +1,21 @@
 import discord
-import os
+import os, datetime
 import aiosqlite
 import urllib.parse
 from discord.ext import commands
 from discord import app_commands
 
-
+def parse_color(color_str):
+    if color_str is None:
+        return None
+    if isinstance(color_str, int):
+        return discord.Color(color_str)
+    if color_str.startswith('#'):
+        return discord.Color.from_str(color_str)
+    try:
+        return discord.Color(int(color_str))
+    except ValueError:
+        return None
 
 """
 Welcome System for Discord Bot
@@ -132,20 +142,133 @@ class Welcome(commands.Cog):
             await db.execute("UPDATE welcome SET welcome_enabled = FALSE WHERE guild_id = ?", (interaction.guild_id,))
             await db.commit()
         await interaction.response.send_message("Welcome messages disabled.")
+        
+    @welcome.command(name="embed-timestamp", description="Toggle the timestamp on the welcome embed")
+    @app_commands.describe(enabled="Whether to show the timestamp or not")
+    async def welcome_embed_timestamp(self, interaction: discord.Interaction, enabled: bool = True):
+        """
+        Toggle the timestamp on the welcome embed.
+
+        Args:
+            interaction (discord.Interaction): The interaction object.
+            enabled (bool): Whether to show the timestamp or not. Defaults to True.
+        """
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("INSERT OR REPLACE INTO welcome_embed (guild_id, timestamp) VALUES (?, ?)",
+                            (interaction.guild_id, enabled))
+            await db.commit()
+        
+        status = "enabled" if enabled else "disabled"
+        await interaction.response.send_message(f"Welcome embed timestamp {status}.")
+
+    @welcome.command(name="set-embed", description="Set the welcome embed using a saved embed")
+    @app_commands.describe(embed_name="Name of the saved embed to use for welcome messages")
+    async def welcome_set_embed(self, interaction: discord.Interaction, embed_name: str):
+        """
+        Set the welcome embed using a saved embed from the EmbedProject cog.
+
+        Args:
+            interaction (discord.Interaction): The interaction object.
+            embed_name (str): The name of the saved embed to use.
+        """
+        embed_cog = self.bot.get_cog("EmbedProject")
+        if not embed_cog:
+            return await interaction.response.send_message("EmbedProject cog is not loaded. Unable to retrieve saved embeds.", ephemeral=True)
+
+        embed_data = await embed_cog.retrieve_embed_data(interaction.user.id, embed_name)
+        if not embed_data:
+            return await interaction.response.send_message(f"No embed found with the name '{embed_name}'.", ephemeral=True)
+
+        # Extract relevant embed properties
+        title = embed_data.title
+        description = embed_data.description
+        color = embed_data.color.value if embed_data.color else None
+        footer_text = embed_data.footer.text if embed_data.footer else None
+        footer_icon_url = embed_data.footer.icon_url if embed_data.footer else None
+        author_name = embed_data.author.name if embed_data.author else None
+        author_icon_url = embed_data.author.icon_url if embed_data.author else None
+        thumbnail_url = embed_data.thumbnail.url if embed_data.thumbnail else None
+
+        # Update the welcome_embed table with the new data
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("""
+                INSERT OR REPLACE INTO welcome_embed 
+                (guild_id, title, description, color, footer_text, footer_icon_url, 
+                author_name, author_icon_url, thumbnail_url) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (interaction.guild_id, title, description, color, footer_text, footer_icon_url,
+                  author_name, author_icon_url, thumbnail_url))
+            await db.commit()
+
+        await interaction.response.send_message(f"Welcome embed has been updated using the settings from '{embed_name}'.", ephemeral=True)
+
+    @welcome.command(name="test", description="Test the welcome message for this server")
+    async def welcome_test(self, interaction: discord.Interaction):
+        """
+        Test the welcome message and embed for the server.
+
+        Args:
+            interaction (discord.Interaction): The interaction object.
+        """
+        welcome_data = await get_welcome_data(interaction.guild_id)
+        
+        if not welcome_data or not welcome_data['welcome_enabled']:
+            return await interaction.response.send_message("Welcome messages are not enabled for this server. Use `/welcome enable` to get started.", ephemeral=True)
+
+        channel = self.bot.get_channel(welcome_data['welcome_channel'])
+        if not channel:
+            return await interaction.response.send_message("The configured welcome channel no longer exists. Please set a new channel using `/welcome enable`.", ephemeral=True)
+
+        embed_data = await get_welcome_embed_data(interaction.guild_id)
+        embed = discord.Embed()
+        if embed_data:
+            if embed_data['title']:
+                embed.title = self.format_string(embed_data['title'], interaction.user)
+            
+            # Ensure there's always a description
+            embed.description = self.format_string(embed_data['description'], interaction.user) if embed_data['description'] else f"Welcome to {interaction.guild.name}!"
+            
+            if embed_data['color']:
+                color = parse_color(embed_data['color'])
+                if color:
+                    embed.color = color
+            if embed_data['footer_text']:
+                embed.set_footer(text=self.format_string(embed_data['footer_text'], interaction.user), icon_url=embed_data['footer_icon_url'])
+            if embed_data['author_name']:
+                embed.set_author(name=self.format_string(embed_data['author_name'], interaction.user), icon_url=embed_data['author_icon_url'])
+            if embed_data['image_url']:
+                embed.set_image(url=embed_data['image_url'])
+            if embed_data['thumbnail_url']:
+                embed.set_thumbnail(url=embed_data['thumbnail_url'])
+            if embed_data['timestamp']:
+                embed.timestamp = discord.utils.utcnow()
+        else:
+            # If no embed data is found, create a default embed
+            embed.title = f"Welcome to {interaction.guild.name}!"
+            embed.description = f"Welcome, {interaction.user.mention}! You are our {self.get_ordinal(interaction.guild.member_count)} member."
+
+        welcome_message = self.format_string(welcome_data['welcome_message'], interaction.user)
+        
+        try:
+            await interaction.response.send_message("Here's a preview of the welcome message:", ephemeral=True)
+            await interaction.followup.send(content=welcome_message, embed=embed, ephemeral=True)
+            await interaction.followup.send(f"The actual welcome message will be sent in {channel.mention}.", ephemeral=True)
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"Error sending welcome message preview: {e}", ephemeral=True)
 
     @welcome.command(name="embed-edit", description="Edit welcome embed properties")
     @app_commands.describe(
         title="Embed title",
         description="Embed description",
-        color="Embed color (hex format)",
+        color="Embed color (hex format or integer)",
         footer_text="Footer text",
         footer_icon_url="Footer icon URL",
         author_name="Author name",
         author_icon_url="Author icon URL"
     )
     async def welcome_embed_edit(self, interaction: discord.Interaction, title: str = None, description: str = None,
-                                 color: str = None, footer_text: str = None, footer_icon_url: str = None,
-                                 author_name: str = None, author_icon_url: str = None):
+                                color: str = None, footer_text: str = None, footer_icon_url: str = None,
+                                author_name: str = None, author_icon_url: str = None):
         """
         Edit the properties of the welcome embed.
 
@@ -153,7 +276,7 @@ class Welcome(commands.Cog):
             interaction (discord.Interaction): The interaction object.
             title (str, optional): The title of the embed.
             description (str, optional): The description of the embed.
-            color (str, optional): The color of the embed in hex format.
+            color (str, optional): The color of the embed in hex format or as an integer.
             footer_text (str, optional): The text to display in the footer.
             footer_icon_url (str, optional): The URL of the footer icon.
             author_name (str, optional): The name to display in the author field.
@@ -169,10 +292,12 @@ class Welcome(commands.Cog):
                 updates.append("description = ?")
                 values.append(description)
             if color is not None:
-                if not color.startswith('#'):
-                    color = f'#{color}'
-                updates.append("color = ?")
-                values.append(color)
+                parsed_color = await parse_color(color)
+                if parsed_color:
+                    updates.append("color = ?")
+                    values.append(parsed_color.value)
+                else:
+                    return await interaction.response.send_message("Invalid color format. Please use hex (e.g., #FF0000) or integer format.", ephemeral=True)
             if footer_text is not None:
                 updates.append("footer_text = ?")
                 values.append(footer_text)
