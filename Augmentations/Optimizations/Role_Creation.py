@@ -229,7 +229,7 @@ async def execute_chunk_roles(guild: discord.Guild, roles_dict: dict, put_after:
         raise ValueError("Cannot place roles higher than or equal to the bot's highest role.")
 
     created_roles = []
-    chunk_size = 3  # Create 5 roles at a time
+    chunk_size = 3  # Create 3 roles at a time
     for i in range(0, len(all_roles), chunk_size):
         chunk = all_roles[i:i+chunk_size]
         chunk_created_roles = []
@@ -248,23 +248,19 @@ async def execute_chunk_roles(guild: discord.Guild, roles_dict: dict, put_after:
         if i + chunk_size < len(all_roles):
             await asyncio.sleep(0.5)  # Wait 0.5 seconds between chunks
     
-    # Position roles one by one, from top to bottom
-    for role in created_roles:
-        try:
-            # Get the current position of the role
-            current_position = role.position
-            
-            # If the current position is already higher than the target, skip
-            if current_position <= target_position:
-                await role.edit(position=target_position)
-                print(f"Positioned role {role.name} (ID: {role.id}) at position {target_position}")
-            else:
-                print(f"Skipped positioning role {role.name} (ID: {role.id}) as it's already higher than target position")
-            
-            # Update target position for the next role
-            target_position += 1
-        except discord.HTTPException as e:
-            print(f"Failed to position role {role.name} (ID: {role.id}): {e}")
+    # Position all roles at once
+    role_positions = []
+    for index, role in enumerate(created_roles):
+        role_positions.append({
+            'id': role.id,
+            'position': target_position + index
+        })
+
+    try:
+        await guild.edit_role_positions(role_positions)
+        print(f"Positioned {len(role_positions)} roles successfully.")
+    except discord.HTTPException as e:
+        print(f"Failed to position roles: {e}")
 
     print(f"Chunk role creation process complete. Created and positioned {len(created_roles)} roles.")
     return created_roles

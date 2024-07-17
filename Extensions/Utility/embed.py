@@ -1086,7 +1086,7 @@ class EmbedProject(commands.Cog):
                 columns = [description[0] for description in cursor.description]
                 data = dict(zip(columns, row))
                 
-                # Always create an embed with at least a description
+                # Always creates an embed with at least a description
                 embed = discord.Embed(
                     title=data.get("title") or "",
                     description=data.get("description") or f"This embed '{embed_name}' is empty. Add some properties to it.",
