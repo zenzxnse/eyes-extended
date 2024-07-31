@@ -34,7 +34,7 @@ async def gen_role(history, instructions='Augmentations/Ai/RT/role_instruct.txt'
             model=config['MODEL_ID'],
             messages=messages,
             temperature=0.9,
-            max_tokens=8192,
+            max_tokens=8000,
             top_p=1,
             stream=True,
         )

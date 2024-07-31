@@ -55,13 +55,13 @@ async def db_setup():
         await db.execute("""CREATE TABLE IF NOT EXISTS goodbye 
                          (guild_id INTEGER PRIMARY KEY,
                          goodbye_enabled BOOLEAN DEFAULT FALSE, 
-                         goodbye_message TEXT DEFAULT 'Goodbye, {user_name}. We\'ll miss you!',
+                         goodbye_message TEXT DEFAULT "Goodbye, {user_name}. We'll miss you!",
                          goodbye_channel INTEGER)""")
         await db.execute("""CREATE TABLE IF NOT EXISTS goodbye_embed
                          (guild_id INTEGER PRIMARY KEY,
-                         title TEXT DEFAULT 'Farewell, {user_name}!',
-                         description TEXT DEFAULT 'We hope to see you again soon!',
-                         color TEXT DEFAULT '#ff0000',
+                         title TEXT DEFAULT "Farewell, {user_name}!",
+                         description TEXT DEFAULT "We hope to see you again soon!",
+                         color TEXT DEFAULT "#ff0000",
                          footer_text TEXT,
                          footer_icon_url TEXT,
                          author_name TEXT,
@@ -115,17 +115,28 @@ class Goodbye(commands.Cog):
     @app_commands.describe(goodbye_channel="The channel to send goodbye messages in")
     async def goodbye_enable(self, interaction: discord.Interaction, goodbye_channel: discord.TextChannel):
         """
-        Enable goodbye messages for the guild and set the goodbye channel.
+        Enable goodbye messages for the server.
 
         Args:
             interaction (discord.Interaction): The interaction object.
-            goodbye_channel (discord.TextChannel): The channel where goodbye messages will be sent.
+            goodbye_channel (discord.TextChannel): The channel to send goodbye messages in.
         """
+        # Check if the interaction is None (called programmatically)
+        if interaction is None:
+            guild_id = goodbye_channel.guild.id
+        else:
+            guild_id = interaction.guild_id
+
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("INSERT OR REPLACE INTO goodbye (guild_id, goodbye_enabled, goodbye_channel) VALUES (?, TRUE, ?)",
-                             (interaction.guild_id, goodbye_channel.id))
+            await db.execute("""INSERT OR REPLACE INTO goodbye 
+                             (guild_id, goodbye_enabled, goodbye_channel) 
+                             VALUES (?, TRUE, ?)""", 
+                             (guild_id, goodbye_channel.id))
             await db.commit()
-        await interaction.response.send_message(f"Goodbye messages enabled in {goodbye_channel.mention}.")
+        
+        if interaction:
+            await interaction.response.send_message(f"Goodbye messages enabled in {goodbye_channel.mention}.")
+        print(f"Goodbye system enabled for guild ID: {guild_id}, channel ID: {goodbye_channel.id}")
 
     @goodbye.command(name="disable", description="Disable goodbye messages")
     async def goodbye_disable(self, interaction: discord.Interaction):

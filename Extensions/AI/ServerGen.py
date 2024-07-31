@@ -48,8 +48,10 @@ class ServerGen(commands.Cog):
             app_commands.Choice(name=theme, value=theme)
             for theme in self.community_themes if current.lower() in theme.lower()
         ][:25]
+    
+    generate = app_commands.Group(name="generate", description="Generate a Server/Channel template using AI")
 
-    @app_commands.command(name="generate", description="Generate a server template using AI")
+    @generate.command(name="server", description="Generate a server template using AI")
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.autocomplete(category_to_ignore=category_autocomplete)
     @app_commands.autocomplete(default_theme=default_theme_autocomplete)
@@ -61,7 +63,8 @@ class ServerGen(commands.Cog):
         verification_channel: bool = False,
         category_to_ignore: str = None,
         default_theme: str = None,
-        community_theme: str = None
+        community_theme: str = None,
+        welcome_system: bool = False  # New parameter
     ):
         await interaction.response.defer(thinking=True)
 
@@ -100,6 +103,7 @@ class ServerGen(commands.Cog):
 
         view.template = template_dict
         view.verification_channel = verification_channel
+        view.welcome_system = welcome_system  
         view.interaction = interaction
         view.category_to_ignore = category_to_ignore
         view.is_community = bool(community_theme)
@@ -116,7 +120,7 @@ class ServerGen(commands.Cog):
 
         if view.value:
             print("User confirmed template, processing...")
-            await process_template(interaction, template_dict, verification_channel, category_to_ignore, view.is_community)
+            await process_template(interaction, template_dict, verification_channel, category_to_ignore, view.is_community, welcome_system)
         else:
             await interaction.followup.send("Template generation cancelled.")
             print("Template generation cancelled by user")

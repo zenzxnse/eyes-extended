@@ -8,6 +8,10 @@ import traceback, re
 from colorama import Fore, Style
 from urllib.parse import urlparse
 from Extensions.Utility.roles import RoleMenuView  # Import the RoleMenuView class
+from typing import Optional
+from discord import app_commands, Webhook, TextChannel, HTTPException, Interaction
+import datetime
+
 # import logging
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -64,7 +68,14 @@ class EmbedbuilderButtons(discord.ui.View):
             await interaction.response.send_message("No embed found with that name.", ephemeral=True)
     @discord.ui.button(label="Delete Embed", style=discord.ButtonStyle.gray, row=2, emoji="<:del:1235849127179452468>")
     async def remove_embed(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Are you sure you want to delete this embed?", view=DeleteEmbedView(self.bot, self.user_id, self.embed_name), ephemeral=True)
+        delete_confirm_embed = discord.Embed(
+            title="<:del:1235849127179452468> Delete Embed",
+            description="Are you sure you want to delete this embed?",
+            color=0x2F3136
+        )
+        delete_confirm_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        delete_confirm_embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=delete_confirm_embed, view=DeleteEmbedView(self.bot, self.user_id, self.embed_name), ephemeral=True)
     
 
         
@@ -173,25 +184,22 @@ class EmbedEditButtons(discord.ui.View):
     @discord.ui.button(label="Add field", style=discord.ButtonStyle.gray)
     async def add_field(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = AddFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
-        await modal.setup()
         await interaction.response.send_modal(modal)
     @discord.ui.button(label="Remove field", style=discord.ButtonStyle.gray)
     async def remove_field(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = RemoveFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
-        await modal.setup()
         await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Edit Field", style=discord.ButtonStyle.gray)
-    async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def edit_field(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = EditFieldModal(self.bot, self.user_id, self.embed_name, self.update_embed_message)
-        await modal.setup()
         await interaction.response.send_modal(modal)
 
 class ButtonLookView(discord.ui.View):
     def __init__(self, bot, embed_name):
         super().__init__()
         self.bot = bot
-        self.embed_name = embed_name  # Store the embed_name
+        self.embed_name = embed_name
         for style in ["Primary", "Secondary", "Success", "Danger"]:
             self.add_item(discord.ui.Button(label=style, style=getattr(discord.ButtonStyle, style.lower()), custom_id=style.lower()))
 
@@ -199,33 +207,39 @@ class ButtonLookView(discord.ui.View):
         selected_style = interaction.data['custom_id']
         await interaction.response.send_modal(ButtonModal(self.bot, selected_style, self.embed_name))
 
-class ButtonModal(discord.ui.Modal, title="Please Enter The Button Details :"):
+class ButtonModal(discord.ui.Modal, title="Button Details"):
     def __init__(self, bot, style, embed_name):
         super().__init__()
         self.bot = bot
         self.style = style
-        self.embed_name = embed_name  # Store the embed_name
+        self.embed_name = embed_name
         self.add_item(discord.ui.TextInput(label="Button Label", placeholder="Enter the button label or name...", style=discord.TextStyle.short, required=True))
         self.add_item(discord.ui.TextInput(label="Button Emoji", placeholder="Example: <:planet:1223294341204938872> or leave blank...", style=discord.TextStyle.short, required=False))
 
     async def on_submit(self, interaction: discord.Interaction):
         label = self.children[0].value
-        emoji = self.children[1].value or None  # Handle empty emoji input correctly
+        emoji = self.children[1].value or None
 
-        # Validate label length
         if len(label) > 32:
-            await interaction.response.send_message("Button label must be 32 characters or fewer.", ephemeral=True)
+            embed = discord.Embed(title="<:1001timeout:1233770920099844227> Invalid Input", description="Button label must be 32 characters or fewer.", color=0xFF0000)
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        # Validate emoji format if provided
         if emoji and not self.is_valid_emoji(emoji):
-            await interaction.response.send_message("The provided emoji is invalid. Please enter a valid emoji or leave it blank.", ephemeral=True)
+            embed = discord.Embed(title="<:1001timeout:1233770920099844227> Invalid Emoji", description="The provided emoji is invalid. Please enter a valid emoji or leave it blank.", color=0xFF0000)
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        await interaction.response.send_message("What should this button do?", view=ButtonDropdownView(self.bot, label, emoji, self.style, self.embed_name), ephemeral=True)
+        embed = discord.Embed(title="<a:83888settingsanimation:1233771395415015524> Button Action", description="What should this button do?", color=0x2F3136)
+        embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=embed, view=ButtonDropdownView(self.bot, label, emoji, self.style, self.embed_name), ephemeral=True)
 
     def is_valid_emoji(self, emoji):
-        # Simple check to validate emoji format
         return emoji.startswith('<:') and emoji.endswith('>') and ':' in emoji
 
 class ButtonDropdownView(discord.ui.View):
@@ -235,7 +249,7 @@ class ButtonDropdownView(discord.ui.View):
         self.label = label
         self.emoji = emoji
         self.style = style
-        self.embed_name = embed_name  # Store the embed_name
+        self.embed_name = embed_name
         self.add_item(ButtonDropdown(bot, label, emoji, style, embed_name))
 
 class ButtonDropdown(discord.ui.Select):
@@ -247,16 +261,19 @@ class ButtonDropdown(discord.ui.Select):
         self.style = style
         self.embed_name = embed_name
         self.options = [
-            discord.SelectOption(label="Give Role", description="Assign a role"),
-            discord.SelectOption(label="Send An Embedded Message", description="Send an embedded message"),
-            discord.SelectOption(label="Send A Default Message", description="Send a plain message"),
-            discord.SelectOption(label="Sends a role menu", description="the role menu which you have configured for ur server for self roles")
+            discord.SelectOption(label="Give Role", description="Assign a role", emoji="🎭"),
+            discord.SelectOption(label="Send An Embedded Message", description="Send an embedded message", emoji="📨"),
+            discord.SelectOption(label="Send A Default Message", description="Send a plain message", emoji="💬"),
+            discord.SelectOption(label="Sends a role menu", description="Self-role menu configuration", emoji="📋")
         ]
 
     async def callback(self, interaction: discord.Interaction):
         selected_option = self.values[0]
         if selected_option == "Give Role":
-            await interaction.response.send_message("Select a role:", view=RoleDropdownView(self.bot, interaction.guild.roles, self.label, self.emoji, self.style, self.embed_name), ephemeral=True)
+            embed = discord.Embed(title="<:9177neonredarrowright:1240180166089769000> Role Selection", description="Select a role to assign:", color=0x2F3136)
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=embed, view=RoleDropdownView(self.bot, interaction.guild.roles, self.label, self.emoji, self.style, self.embed_name), ephemeral=True)
         elif selected_option == "Send An Embedded Message":
             await interaction.response.send_modal(EmbedToButtons(self.bot, interaction.user.id, self.embed_name, self.label, self.emoji, self.style))
         elif selected_option == "Send A Default Message":
@@ -284,20 +301,22 @@ class RoleMenuNameModal(discord.ui.Modal, title="Role Menu Name"):
 
     async def on_submit(self, interaction: discord.Interaction):
         role_menu_name = self.role_menu_name.value.strip()
-        guild_id = interaction.guild.id  # Get the guild ID from the interaction
-        # Check if the role menu exists in the current guild
+        guild_id = interaction.guild.id
         role_menu_exists = await self.bot.get_cog("Roles").check_role_menu_exists(guild_id, role_menu_name)
         if role_menu_exists:
-            additional_data = {'role_menu_name': role_menu_name, 'guild_id': guild_id}  # Include guild_id in additional_data
-            await interaction.response.send_message("Role menu found! Finalizing button creation.", ephemeral=True)
-            # Pass the correct label, emoji, and style to FinalizeButtonView
-            await interaction.followup.send("Finalizing button creation.", view=FinalizeButtonView(self.bot, self.user_id, self.embed_name, self.label, self.emoji, self.style, "Sends a role menu", additional_data), ephemeral=True)
+            additional_data = {'role_menu_name': role_menu_name, 'guild_id': guild_id}
+            embed = discord.Embed(title="<a:fire:1235847103041900554> Role Menu Found", description="Role menu found! Finalizing button creation.", color=0x2F3136)
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=discord.Embed(title="<a:discord_typing:1233761017801211955> Finalizing", description="Finalizing button creation.", color=0x2F3136), view=FinalizeButtonView(self.bot, self.user_id, self.embed_name, self.label, self.emoji, self.style, "Sends a role menu", additional_data), ephemeral=True)
         else:
-            await interaction.response.send_message("Role menu not found. Please try again.", ephemeral=True)
+            embed = discord.Embed(title="<:1001timeout:1233770920099844227> Role Menu Not Found", description="Role menu not found. Please try again.", color=0xFF0000)
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# Similar modifications should be made to other classes like RoleDropdownView, EmbedToButtons, etc.
-
-class CustomMessageModal(discord.ui.Modal, title="Enter Custom Message"):
+class CustomMessageModal(discord.ui.Modal, title="Custom Message"):
     def __init__(self, bot, label, emoji, style, embed_name):
         super().__init__()
         self.bot = bot
@@ -315,8 +334,12 @@ class CustomMessageModal(discord.ui.Modal, title="Enter Custom Message"):
     async def on_submit(self, interaction: discord.Interaction):
         custom_message = self.children[0].value
         additional_data = {'custom_message': custom_message}
-        await interaction.response.send_message("Finalizing button creation.", ephemeral=True)
+        embed = discord.Embed(title="<a:discord_typing:1233761017801211955> Finalizing", description="Finalizing button creation.", color=0x2F3136)
+        embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         await interaction.followup.send(view=FinalizeButtonView(self.bot, interaction.user.id, self.embed_name, self.label, self.emoji, self.style, "Send A Default Message", additional_data), ephemeral=True)
+
 class ButtomEmbedMessageView(discord.ui.View):
     def __init__(self, bot, user_id, embed_name):
         super().__init__()
@@ -324,7 +347,7 @@ class ButtomEmbedMessageView(discord.ui.View):
         self.user_id = user_id
         self.embed_name = embed_name
 
-    @discord.ui.button(label="Embed Name", style=discord.ButtonStyle.gray)
+    @discord.ui.button(label="Embed Name", style=discord.ButtonStyle.gray, emoji="<:8355moon:1233771385839681566>")
     async def embed_name(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(EmbedToButtons(self.bot, self.user_id, self.embed_name))
 
@@ -333,7 +356,7 @@ class EmbedToButtons(discord.ui.Modal, title="Embed Name"):
         super().__init__()
         self.bot = bot
         self.user_id = user_id
-        self.original_embed_name = original_embed_name  # This is the embed where the button is attached
+        self.original_embed_name = original_embed_name
         self.label = label
         self.emoji = emoji
         self.style = style
@@ -342,15 +365,18 @@ class EmbedToButtons(discord.ui.Modal, title="Embed Name"):
             style=discord.TextStyle.short,
             placeholder="Enter the name of the embed to send...",
             required=True,
-            default=original_embed_name  # Default to the original embed name, can be changed by user
+            default=original_embed_name
         )
         self.add_item(self.send_embed_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         send_embed_name = self.send_embed_input.value.strip()
         additional_data = {'send_embed': send_embed_name}
-        await interaction.response.send_message(f"Embed to send updated to: {send_embed_name}", ephemeral=True)
-        await interaction.followup.send("Finalizing button creation.", view=FinalizeButtonView(self.bot, self.user_id, self.original_embed_name, self.label, self.emoji, self.style, "Send An Embedded Message", additional_data), ephemeral=True)
+        embed = discord.Embed(title="<a:fire:1235847103041900554> Embed Updated", description=f"Embed to send updated to: **{send_embed_name}**", color=0x2F3136)
+        embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=discord.Embed(title="<a:discord_typing:1233761017801211955> Finalizing", description="Finalizing button creation.", color=0x2F3136), view=FinalizeButtonView(self.bot, self.user_id, self.original_embed_name, self.label, self.emoji, self.style, "Send An Embedded Message", additional_data), ephemeral=True)
 
 class RoleDropdownView(discord.ui.View):
     def __init__(self, bot, roles, label, emoji, style, embed_name):
@@ -369,60 +395,98 @@ class RoleDropdown(discord.ui.Select):
         self.label = label
         self.emoji = emoji
         self.style = style
-        self.embed_name = embed_name  # Store the embed_name
+        self.embed_name = embed_name
 
-        # Get the bot's highest role position in the guild
-        bot_member = bot.get_guild(roles[0].guild.id).me  # Assuming all roles are from the same guild
+        bot_member = bot.get_guild(roles[0].guild.id).me
         bot_highest_role_position = bot_member.top_role.position
 
-        # Filter roles that the bot can manage
         manageable_roles = [
             role for role in roles
             if role.position < bot_highest_role_position and role.name != "@everyone"
         ]
 
-        options = [
+        self.options = [
             discord.SelectOption(label=role.name, description=f"ID: {role.id}", value=str(role.id))
             for role in manageable_roles
         ]
-        self.options = options
 
     async def callback(self, interaction: discord.Interaction):
         role_id = self.values[0]
-        role = interaction.guild.get_role(int(role_id))  # Retrieve the role object using role_id
+        role = interaction.guild.get_role(int(role_id))
         if role:
             additional_data = {'role_to_give': role_id}
-            await interaction.response.send_message(f"You selected: {role.name}", ephemeral=True)
-            await interaction.followup.send("Finalizing button creation.", view=FinalizeButtonView(self.bot, interaction.user.id, self.embed_name, self.label, self.emoji, self.style, "Give Role", additional_data), ephemeral=True)
+            
+            role_selected_embed = discord.Embed(
+                title="<:73914home:1233771403845566504> Role Selected",
+                description=f"You selected: **{role.name}**",
+                color=0x2F3136
+            )
+            role_selected_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            role_selected_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=role_selected_embed, ephemeral=True)
+
+            finalizing_embed = discord.Embed(
+                title="<a:discord_typing:1233761017801211955> Finalizing Button",
+                description="Finalizing button creation. Please confirm in the next step.",
+                color=0x2F3136
+            )
+            finalizing_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            finalizing_embed.timestamp = discord.utils.utcnow()
+            await interaction.followup.send(
+                embed=finalizing_embed,
+                view=FinalizeButtonView(self.bot, interaction.user.id, self.embed_name, self.label, self.emoji, self.style, "Give Role", additional_data),
+                ephemeral=True
+            )
         else:
-            await interaction.response.send_message("Role not found.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description="Role not found. Please try again.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
 
 class FinalizeButtonView(discord.ui.View):
     def __init__(self, bot, user_id, embed_name, label, emoji, style, functionality, additional_data):
         super().__init__()
         self.bot = bot
         self.user_id = user_id
-        self.embed_name = embed_name  # This is the embed where the button is attached
+        self.embed_name = embed_name
         self.label = label
         self.emoji = emoji
         self.style = style
         self.functionality = functionality
         self.additional_data = additional_data
 
-    @discord.ui.button(label="Confirm Button Creation", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Confirm Button Creation", style=discord.ButtonStyle.green, emoji="<a:fire:1235847103041900554>")
     async def confirm_button_creation(self, interaction: discord.Interaction, button: discord.ui.Button):
         embed_project = self.bot.get_cog("EmbedProject")
         if embed_project:
-            # Ensure style is passed as a string
             style_name = self.style.name if isinstance(self.style, discord.ButtonStyle) else self.style
             custom_id = await embed_project.add_button_info_db(
                 self.user_id, self.embed_name, self.label, style_name, None,
                 self.emoji, self.additional_data.get('role_to_give'), self.additional_data.get('send_embed'), self.additional_data.get('custom_message'),
                 guild_id=self.additional_data.get('guild_id'), role_menu_name=self.additional_data.get('role_menu_name')
             )
-            await interaction.response.send_message(f"Button created successfully with ID {custom_id}!", ephemeral=True)
+            
+            success_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Button Created",
+                description=f"Button created successfully!\n\n<:9177neonredarrowright:1240180166089769000> **Button ID:** `{custom_id}`\n<:9177neonredarrowright:1240180166089769000> **Embed:** `{self.embed_name}`",
+                color=0x2F3136
+            )
+            success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            success_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=success_embed, ephemeral=True)
         else:
-            await interaction.response.send_message("Failed to access EmbedProject cog. Button not created.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description="Failed to access EmbedProject cog. Button not created.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
            
 
 # This view is shown after all necessary data is collected
@@ -1251,76 +1315,203 @@ class EmbedProject(commands.Cog):
             else:
                 return False, "No buttons found for this embed."
     
-    @embed.command(name="builder", description="(✿◕‿◕) Either create or modify an existing embed.")
+    @embed.command(name="builder", description="Create or modify an existing embed")
     @app_commands.describe(embed_name="Name of the embed to edit")
     async def embed_builder(self, interaction: discord.Interaction, embed_name: str):
         embed = await self.retrieve_embed_data(interaction.user.id, embed_name)
+        view = EmbedbuilderButtons(self.bot, interaction.user.id, embed_name)
+        
         if embed:
-            view = EmbedbuilderButtons(self.bot, interaction.user.id, embed_name)
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            # Existing embed
+            await interaction.response.send_message(f"<:5068file:1233764689071046687> Embed Builder: {embed_name}\n-# Use the buttons below to modify your embed.",embed=embed, view=view, ephemeral=True)
         else:
-            # Create a new embed with default values
-            default_title = "New Embed"
-            default_description = "This is a new embed. Edit it as you wish!"
-            default_color = 0x000000  # Black color
+            # New embed
+            default_title = f"<:5068file:1233764689071046687> New Embed Created: {embed_name}"
+            default_description = (
+                "Welcome to the Embed Builder! Here's how to use it:\n\n"
+                "<a:pencil_cc:1235842878740238347> **Edit Embed**:\n"
+                "Modify title, description, color, images, footer, and author.\n\n"
+                "<:plus:1235848647531298876> **Add Button**:\n"
+                "Create interactive buttons for your embed.\n\n"
+                "<:delete:1233761545754771546> **Remove Button**:\n"
+                "Delete unwanted buttons from your embed.\n\n"
+                "<a:fire:1235847103041900554> **Reveal Embed**:\n"
+                "Preview your embed as it will appear to users.\n\n"
+                "<:del:1235849127179452468> **Delete Embed**:\n"
+                "Permanently remove this embed if needed.\n\n"
+                "Start customizing your embed now!\n\n"
+                "<a:83888settingsanimation:1233771395415015524> **Your New Embed**\n"
+                "-# This is your new embed. Use the buttons below to modify it."
+            )
+            default_color = 0x2F3136
             await self.save_user_embeds(
                 interaction.user.id, embed_name,
                 title=default_title, description=default_description, color=default_color
             )
-            # Retrieve the newly created embed to display
-            embed = await self.retrieve_embed_data(interaction.user.id, embed_name)
-            if embed:
-                view = EmbedbuilderButtons(self.bot, interaction.user.id, embed_name)
-                await interaction.response.send_message("A new embed has been created.", embed=embed, view=view, ephemeral=True)
+            new_embed = await self.retrieve_embed_data(interaction.user.id, embed_name)
+            if new_embed:
+                await interaction.response.send_message(embed=new_embed, view=view, ephemeral=True)
             else:
-                await interaction.response.send_message("Failed to create a new embed.", ephemeral=True)
+                error_embed = discord.Embed(
+                    title="<:1001timeout:1233770920099844227> Error",
+                    description="Failed to create a new embed.",
+                    color=0xFF0000
+                )
+                error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+                error_embed.timestamp = discord.utils.utcnow()
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
     
-    @embed.command(name="through-webhook", description="*^____^* Send an embed through a webhook, in the specified channel.")
+    @app_commands.command(name="through-webhook", description="Send an embed through a webhook")
     @app_commands.describe(
         embed_name="Name of the embed to send",
-        channel_mention="Mention the channel where the webhook will send the message"
+        webhook_url="URL of the webhook to use (optional, can't send buttoned embeds)",
+        channel="Channel to send the embed to (optional, defaults to current channel)"
     )
-    async def send_through_webhook(self, interaction: discord.Interaction, embed_name: str, channel_mention: str):
-        # Extract channel ID from mention
-        try:
-            channel_id = int(channel_mention.strip('<>#'))
-        except ValueError:
-            await interaction.response.send_message("Invalid channel mention.", ephemeral=True)
+    async def send_through_webhook(
+        self, 
+        interaction: Interaction, 
+        embed_name: str, 
+        webhook_url: Optional[str] = None, 
+        channel: Optional[TextChannel] = None
+    ):
+        if webhook_url and channel:
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description="Please provide either a webhook URL or a channel, not both.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
-        # Retrieve the channel from the channel ID
-        channel = self.bot.get_channel(channel_id)
-        if not channel:
-            await interaction.response.send_message("Invalid channel ID provided.", ephemeral=True)
-            return
-
-        # Check if the bot has permissions to manage webhooks in the channel
-        if not channel.permissions_for(interaction.guild.me).manage_webhooks:
-            await interaction.response.send_message("I do not have permission to manage webhooks in this channel.", ephemeral=True)
-            return
-
-        # Retrieve the embed data
+        channel = channel or interaction.channel
+        
         embed_data = await self.retrieve_embed_data(interaction.user.id, embed_name, include_view=True)
         if not embed_data:
-            await interaction.response.send_message(f"No embed found with the name '{embed_name}'.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description=f"No embed found with the name '{embed_name}'.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
         embed, view = embed_data
 
-        # Find an existing webhook created by the bot
-        webhooks = await channel.webhooks()
-        webhook = next((wh for wh in webhooks if wh.user == self.bot.user), None)
-
-        # If no existing webhook found, create a new one
-        if not webhook:
-            webhook = await channel.create_webhook(name="Bot Webhook")
-
-        # Send the message through the webhook
         try:
-            await webhook.send(embed=embed, view=view)
-            await interaction.response.send_message("Message sent successfully through the webhook., You can modify this webhook in the channel settings\n\n```yml\nEdit Channel > Integrations > Webhooks\n```", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"An error occurred: {str(e)}", ephemeral=True)
+            if webhook_url:
+                if view.children:
+                    warning_embed = discord.Embed(
+                        title="<:8355moon:1233771385839681566> Warning",
+                        description="Buttons cannot be sent through a webhook URL. They will be omitted.",
+                        color=0xFFA500
+                    )
+                    warning_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+                    warning_embed.timestamp = discord.utils.utcnow()
+                    await interaction.response.send_message(embed=warning_embed, ephemeral=True)
+                    view = None
+                async with aiohttp.ClientSession() as session:
+                    webhook = Webhook.from_url(webhook_url, session=session)
+                    await webhook.send(embed=embed, view=view)
+            else:
+                webhooks = await channel.webhooks()
+                webhook = next((wh for wh in webhooks if wh.user == interaction.client.user), None)
+                if not webhook:
+                    error_embed = discord.Embed(
+                        title="<:1001timeout:1233770920099844227> Error",
+                        description=f"No webhook found in the specified channel. Please use the `/create-webhook` command first.",
+                        color=0xFF0000
+                    )
+                    error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+                    error_embed.timestamp = discord.utils.utcnow()
+                    await interaction.response.send_message(embed=error_embed, ephemeral=True)
+                    return
+                await webhook.send(embed=embed, view=view)
+
+            success_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Success",
+                description="Message sent successfully through the webhook.",
+                color=0x2F3136
+            )
+            success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            success_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=success_embed, ephemeral=True)
+        except HTTPException as e:
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description=f"An error occurred: {str(e)}",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+
+    @app_commands.command(name="create-webhook", description="Create a webhook in the specified channel")
+    @app_commands.describe(
+        channel="The channel to create the webhook in (optional, defaults to current channel)",
+        avatar="URL for the webhook's avatar (optional)",
+        name="Name for the webhook (optional, defaults to bot's name)"
+    )
+    async def create_webhook(
+        self, 
+        interaction: Interaction, 
+        channel: Optional[TextChannel] = None, 
+        avatar: Optional[str] = None, 
+        name: Optional[str] = None
+    ):
+        channel = channel or interaction.channel
+        name = name or interaction.client.user.name
+
+        if not channel.permissions_for(interaction.guild.me).manage_webhooks:
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description="I don't have permission to manage webhooks in this channel.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+
+        try:
+            avatar_bytes = None
+            if avatar:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(avatar) as resp:
+                        if resp.status == 200:
+                            avatar_bytes = await resp.read()
+                        else:
+                            error_embed = discord.Embed(
+                                title="<:1001timeout:1233770920099844227> Error",
+                                description="Failed to fetch the avatar image.",
+                                color=0xFF0000
+                            )
+                            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+                            error_embed.timestamp = discord.utils.utcnow()
+                            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+                            return
+
+            webhook = await channel.create_webhook(name=name, avatar=avatar_bytes)
+            success_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Webhook Created",
+                description=f"Webhook created successfully!\nURL: {webhook.url}",
+                color=0x2F3136
+            )
+            success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            success_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=success_embed, ephemeral=True)
+        except HTTPException as e:
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description=f"Failed to create webhook: {str(e)}",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
 
     async def fetch_user_buttons(self, user_id):
         async with aiosqlite.connect('db/buttons.db') as db:
@@ -1328,27 +1519,46 @@ class EmbedProject(commands.Cog):
                 buttons = await cursor.fetchall()
                 if not buttons:
                     return None, "No buttons found for the user."
-            user_buttons = [f"1. {button[0]}\n> **__ID: {button[1]}__**, embed = {button[2]}" for button in buttons]
+            user_buttons = [f"<:9177neonredarrowright:1240180166089769000> **{button[0]}**\n> **ID:** `{button[1]}`, **Embed:** `{button[2]}`" for button in buttons]
             return user_buttons, None
 
-    @embed.command(name="buttons", description="(✿◡‿◡) View your embed buttons.")
+    @embed.command(name="buttons", description="View your embed buttons")
     async def my_buttons(self, interaction: discord.Interaction):
-        user_id = interaction.user.id  # Keep as integer
+        user_id = interaction.user.id
         user_buttons, error_message = await self.fetch_user_buttons(user_id)
 
         if error_message:
-            await interaction.response.send_message(error_message, ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description=error_message,
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
         if user_buttons:
-            # Generate a numbered list of buttons
-            description = "\n\n".join(f"{index + 1}. {button}" for index, button in enumerate(user_buttons))
-            embed = discord.Embed(title="Your Buttons", description=description, color=0x8B0000)
+            description = "\n\n".join(user_buttons)
+            embed = discord.Embed(
+                title="<a:83888settingsanimation:1233771395415015524> Your Buttons",
+                description=description,
+                color=0x2F3136
+            )
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message("You have not created any buttons.", ephemeral=True)
+            no_buttons_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> No Buttons",
+                description="You have not created any buttons.",
+                color=0xFF0000
+            )
+            no_buttons_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            no_buttons_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=no_buttons_embed, ephemeral=True)
 
-    @embed.command(name="delete-button", description="^_^ Delete a button from an embed.")
+    @embed.command(name="delete-button", description="Delete a button from an embed")
     @app_commands.describe(custom_id="The custom ID of the button to delete")
     async def delete_button(self, interaction: discord.Interaction, custom_id: str):
         user_id = interaction.user.id
@@ -1358,10 +1568,23 @@ class EmbedProject(commands.Cog):
                 message = f"No button found with ID: {custom_id}. Please check the ID and try again."
             elif "do not own" in message:
                 message = "You do not have permission to delete this button."
-        await interaction.response.send_message(message, ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Error",
+                description=message,
+                color=0xFF0000
+            )
+        else:
+            error_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Success",
+                description=message,
+                color=0x2F3136
+            )
+        error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        error_embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=error_embed, ephemeral=True)
 
     quick = discord.app_commands.Group(name="quick", description="Quickly create an embed.")
-    @quick.command(name="embed", description=";) Quickly create an embed!")
+    @quick.command(name="embed", description="Quickly create an embed!")
     @app_commands.describe(
         embed_name="Name of the embed",
         title="Title of the embed",
@@ -1392,27 +1615,36 @@ class EmbedProject(commands.Cog):
         try:
             color = int(color.strip("#"), 16)
         except ValueError:
-            await interaction.response.send_message("Invalid color format. Please use hex format, e.g., #FFFFFF.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Invalid Color Format",
+                description="Please use hex format, e.g., `#FFFFFF`.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
         # Validate URLs
         def validate_url(url):
-            if url and not (url.startswith("http://") or url.startswith("https://")):
-                return False
-            return True
+            return url and (url.startswith("http://") or url.startswith("https://"))
 
-        invalid_urls = []
-        if footer_icon_url and not validate_url(footer_icon_url):
-            invalid_urls.append("footer icon URL")
-        if author_icon_url and not validate_url(author_icon_url):
-            invalid_urls.append("author icon URL")
-        if thumbnail_url and not validate_url(thumbnail_url):
-            invalid_urls.append("thumbnail URL")
-        if image_url and not validate_url(image_url):
-            invalid_urls.append("image URL")
+        invalid_urls = [f"`{field}`" for field, url in [
+            ("Footer Icon", footer_icon_url),
+            ("Author Icon", author_icon_url),
+            ("Thumbnail", thumbnail_url),
+            ("Image", image_url)
+        ] if url and not validate_url(url)]
 
         if invalid_urls:
-            await interaction.response.send_message(f"Invalid URL provided for {', '.join(invalid_urls)}. URLs must start with http:// or https://", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Invalid URL(s)",
+                description=f"The following URL(s) are invalid:\n{', '.join(invalid_urls)}\n\nURLs must start with `http://` or `https://`",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
         # Save and retrieve embed data
@@ -1425,11 +1657,25 @@ class EmbedProject(commands.Cog):
         )
         embed = await self.retrieve_embed_data(interaction.user.id, embed_name)
         if embed:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            success_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Embed Created Successfully",
+                description=f"Your embed **{embed_name}** has been created. Here's a preview:",
+                color=0x2F3136
+            )
+            success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            success_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embeds=[success_embed, embed], ephemeral=True)
         else:
-            await interaction.response.send_message("Failed to create or retrieve the embed.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Embed Creation Failed",
+                description="Failed to create or retrieve the embed.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
 
-    @commands.hybrid_command(name="embed-edit", description="(ﾉ◕ヮ◕)ﾉ*:Edit a specific property of an existing embed :D try ;embed edit embname title hello world")
+    @commands.hybrid_command(name="embed-edit", description="Edit a specific property of an existing embed")
     @app_commands.describe(
         embed_name="Name of the embed to edit",
         property="Property of the embed to edit",
@@ -1446,38 +1692,64 @@ class EmbedProject(commands.Cog):
         app_commands.Choice(name="thumbnail_url", value="thumbnail_url"),
         app_commands.Choice(name="image_url", value="image_url")
     ])
-    async def edit_embed(self, ctx: commands.Context, embed_name: str, property: str, *,value: str):
+    async def edit_embed(self, ctx: commands.Context, embed_name: str, property: str, *, value: str):
         if value.lower() == 'none':
             value = None
 
         if property in ["footer_icon_url", "author_icon_url", "thumbnail_url", "image_url"] and value:
             if not (value.startswith("http://") or value.startswith("https://")):
-                await ctx.send(f"Invalid URL provided for {property}. URLs must start with http:// or https://", ephemeral=True)
+                error_embed = discord.Embed(
+                    title="<:1001timeout:1233770920099844227> Invalid URL",
+                    description=f"Invalid URL provided for `{property}`. URLs must start with `http://` or `https://`",
+                    color=0xFF0000
+                )
+                error_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+                error_embed.timestamp = discord.utils.utcnow()
+                await ctx.send(embed=error_embed, ephemeral=True)
                 return
 
         if property == "color" and value:
             try:
                 value = int(value.strip("#"), 16)
             except ValueError:
-                await ctx.send("Invalid color format. Please use hex format, e.g., #FFFFFF.", ephemeral=True)
+                error_embed = discord.Embed(
+                    title="<:1001timeout:1233770920099844227> Invalid Color Format",
+                    description="Please use hex format, e.g., `#FFFFFF`.",
+                    color=0xFF0000
+                )
+                error_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+                error_embed.timestamp = discord.utils.utcnow()
+                await ctx.send(embed=error_embed, ephemeral=True)
                 return
 
         await self.update_user_embeds(ctx.author.id, embed_name, **{property: value})
 
         embed = await self.retrieve_embed_data(ctx.author.id, embed_name)
         if embed:
-            await ctx.send(f"Embed '{embed_name}' updated successfully.", embed=embed)
+            success_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Embed Updated Successfully",
+                description=f"Your embed **{embed_name}** has been updated. Here's the new preview:",
+                color=0x2F3136
+            )
+            success_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+            success_embed.timestamp = discord.utils.utcnow()
+            await ctx.send(embeds=[success_embed, embed])
         else:
-            await ctx.send("Failed to retrieve the updated embed.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Update Failed",
+                description="Failed to retrieve the updated embed.",
+                color=0xFF0000
+            )
+            error_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await ctx.send(embed=error_embed, ephemeral=True)
 
     async def role_autocomplete(self, interaction: discord.Interaction, current: str):
-    # Fetch all roles from the guild
         roles = interaction.guild.roles
-        # Filter roles based on the current user input and create choices
         filtered_roles = [discord.app_commands.Choice(name=role.name, value=str(role.id)) for role in roles if current.lower() in role.name.lower()]
-        # Return the filtered list of choices
         return filtered_roles
-    @embed.command(name="button-add", description="(￣﹏￣；) Manually add a button to an embed. but why?, just use /embed builder")
+
+    @embed.command(name="button-add", description="Manually add a button to an embed")
     @app_commands.describe(
         embed_name="Name of the embed to attach the button",
         button_label="Label for the button, max 32 characters",
@@ -1502,42 +1774,57 @@ class EmbedProject(commands.Cog):
         link: str = None, emoji: str = None, role_to_give: str = None,
         send_embed: str = None, custom_message: str = None
     ):
-        user_id = str(interaction.user.id)  # Ensure user_id is a string
+        user_id = str(interaction.user.id)
         custom_id = await self.add_button_info_db(
             user_id, embed_name, button_label, button_style, link, emoji, role_to_give, send_embed, custom_message
         )
-        await interaction.response.send_message(f"Button added to embed '{embed_name}' with ID {custom_id}.", ephemeral=True)
+        success_embed = discord.Embed(
+            title="<a:fire:1235847103041900554> Button Added Successfully",
+            description=f"Button added to embed '**{embed_name}**' with ID `{custom_id}`.",
+            color=0x2F3136
+        )
+        success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        success_embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=success_embed, ephemeral=True)
 
-    @embed.command(name="field-add", description="(￣﹏￣；) Manually add a field to an embed, but why?, just use /embed builder")
+    @embed.command(name="field-add", description="Manually add a field to an embed")
     @app_commands.describe(embed_name="Name of the embed", title="Title of the field", description="Description of the field", inline="Whether the field is inline")
     async def embed_add_field(self, interaction: discord.Interaction, embed_name: str, title: str, description: str = "", inline: bool = True):
         user_id = interaction.user.id
-        # Retrieve current fields to determine the new field_id
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute("SELECT MAX(field_id) FROM embed_fields WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as cursor:
                 result = await cursor.fetchone()
-                new_field_id = (result[0] or 0) + 1  # Increment the highest field_id
+                new_field_id = (result[0] or 0) + 1
 
-        # Add the new field
         await self.add_field_to_embed(user_id, embed_name, new_field_id, title, description, inline)
-        await interaction.response.send_message(f"Field added to embed '{embed_name}'.", ephemeral=True)
-    @embed.command(name="field-remove", description="(￣﹏￣；) Manually remove a field from an embed, but why?, just use /embed builder")
+        success_embed = discord.Embed(
+            title="<a:fire:1235847103041900554> Field Added Successfully",
+            description=f"Field added to embed '**{embed_name}**'.",
+            color=0x2F3136
+        )
+        success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        success_embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=success_embed, ephemeral=True)
+
+    @embed.command(name="field-remove", description="Manually remove a field from an embed")
     @app_commands.describe(embed_name="Name of the embed", field_id="The position of the field to remove")
     async def remove_field(self, interaction: discord.Interaction, embed_name: str, field_id: int):
         user_id = interaction.user.id
         async with aiosqlite.connect(self.db_path) as db:
-            # Check if the field exists before attempting to remove it
             async with db.execute("SELECT field_id FROM embed_fields WHERE user_id = ? AND embed_name = ? AND field_id = ?", (user_id, embed_name, field_id)) as cursor:
                 field = await cursor.fetchone()
                 if not field:
-                    await interaction.response.send_message(f"No field found at position {field_id} in embed '{embed_name}'.", ephemeral=True)
+                    error_embed = discord.Embed(
+                        title="<:1001timeout:1233770920099844227> Field Not Found",
+                        description=f"No field found at position {field_id} in embed '**{embed_name}**'.",
+                        color=0xFF0000
+                    )
+                    error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+                    error_embed.timestamp = discord.utils.utcnow()
+                    await interaction.response.send_message(embed=error_embed, ephemeral=True)
                     return
 
-            # Proceed to remove the field
             await db.execute("DELETE FROM embed_fields WHERE user_id = ? AND embed_name = ? AND field_id = ?", (user_id, embed_name, field_id))
-            await db.commit()
-
-            # Reorder the remaining fields
             await db.execute("""
                 UPDATE embed_fields
                 SET field_id = field_id - 1
@@ -1545,26 +1832,17 @@ class EmbedProject(commands.Cog):
             """, (user_id, embed_name, field_id))
             await db.commit()
 
-        await interaction.response.send_message(f"Field {field_id} removed from embed '{embed_name}'.", ephemeral=True)
+        success_embed = discord.Embed(
+            title="<a:fire:1235847103041900554> Field Removed Successfully",
+            description=f"Field {field_id} removed from embed '**{embed_name}**'.",
+            color=0x2F3136
+        )
+        success_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        success_embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=success_embed, ephemeral=True)
 
-    @embed.command(name="field-edit", description="(￣﹏￣；) Oudated use embed builder, unsure if this works or not.")
-    @app_commands.describe(embed_name="Name of the embed", field_id="ID of the field to edit", title="New title of the field", description="New description of the field")
-    async def embed_edit_field(self, interaction: discord.Interaction, embed_name: str, field_id: int, title: str, description: str = None):
-        user_id = interaction.user.id
-        # Update the field
-        async with aiosqlite.connect(self.db_path) as db:
-            update_clause = "title = ?"
-            params = [title, user_id, embed_name, field_id]
-            if description is not None:
-                update_clause += ", description = ?"
-                params.insert(1, description)
 
-            await db.execute(f"UPDATE embed_fields SET {update_clause} WHERE user_id = ? AND embed_name = ? AND field_id = ?", params)
-            await db.commit()
-
-        await interaction.response.send_message(f"Field {field_id} in embed '{embed_name}' updated.", ephemeral=True)
-
-    @commands.hybrid_command(name="show", description="~(=^‥^)ノ Display a saved embed by name e.g ;s embedname", aliases=["display", "s"])
+    @commands.hybrid_command(name="show", description="~(=^‥^)ノ Display a saved embed by name", aliases=["display", "s"])
     @app_commands.describe(embed_name="Name of the embed to display")
     async def show(self, ctx: commands.Context, embed_name: str):
         try:
@@ -1587,47 +1865,73 @@ class EmbedProject(commands.Cog):
                 embeds = await cursor.fetchall()
 
         if embeds:
-            embed = discord.Embed(title="Your Embeds", color=0x8B0000)  # Dark red color
-            for embed_name in embeds:
-                embed.add_field(name="Embed Name", value=embed_name[0], inline=True)
-
+            embed = discord.Embed(
+                title="<a:83888settingsanimation:1233771395415015524> Your Embeds",
+                description="Here's a list of your saved embeds:",
+                color=0x2F3136
+            )
+            for i, embed_name in enumerate(embeds, 1):
+                embed.add_field(name=f"Embed {i}", value=f"<:9177neonredarrowright:1240180166089769000> {embed_name[0]}", inline=False)
+            embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            embed.timestamp = discord.utils.utcnow()
             await interaction.response.send_message(embed=embed)
         else:
-            await interaction.response.send_message("You have not created any embeds.", ephemeral=True)
+            no_embeds = discord.Embed(
+                title="<:8355moon:1233771385839681566> No Embeds Found",
+                description="You haven't created any embeds yet.",
+                color=0x2F3136
+            )
+            no_embeds.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+            no_embeds.timestamp = discord.utils.utcnow()
+            await interaction.response.send_message(embed=no_embeds, ephemeral=True)
 
     async def delete_embed(self, user_id: int, embed_name: str):
         async with aiosqlite.connect(self.db_path) as db:
-            # Delete fields associated with the embed first
             await db.execute("DELETE FROM embed_fields WHERE user_id = ? AND embed_name = ?", (user_id, embed_name))
-            # Then delete the embed itself
             await db.execute("DELETE FROM user_embeds WHERE user_id = ? AND embed_name = ?", (user_id, embed_name))
             await db.commit()
 
-    @commands.hybrid_command(name="embed-delete", description="~(=^‥^)ノ ;del embedname, delete a specific embed by name or open it in embed builder!", aliases=["del", "delete", "d", "remove"])
+    @commands.hybrid_command(name="embed-delete", description="~(=^‥^)ノ Delete a specific embed by name", aliases=["del", "delete", "d", "remove"])
     async def delete_embed_command(self, ctx: commands.Context, embed_name: str):
-        user_id = ctx.author.id  # Get the user ID from the context
-
-        # Check if the embed exists before attempting to delete
+        user_id = ctx.author.id
         embed = await self.retrieve_embed_data(user_id, embed_name)
         if not embed:
-            await ctx.send(f"No embed found with the name '{embed_name}'.", ephemeral=True)
+            error_embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Embed Not Found",
+                description=f"No embed found with the name '**{embed_name}**'.",
+                color=0x2F3136
+            )
+            error_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+            error_embed.timestamp = discord.utils.utcnow()
+            await ctx.send(embed=error_embed, ephemeral=True)
             return
 
-        # Proceed with deletion of the embed
         await self.delete_embed(user_id, embed_name)
-
-        # Attempt to delete associated buttons from buttons.json
         success, message = await self.delete_buttons_for_embed_db(user_id, embed_name)
-        if not success:
-            if message == "No buttons found for this embed.":
-                # If no buttons were found, confirm deletion of the embed only
-                await ctx.send(f"Embed '{embed_name}' has been successfully deleted. No buttons were associated with this embed.", ephemeral=True)
-            else:
-                # If there was a genuine failure in deleting buttons, report it
-                await ctx.send(f"Failed to delete buttons for '{embed_name}': {message}", ephemeral=True)
+
+        if success:
+            success_embed = discord.Embed(
+                title="<a:fire:1235847103041900554> Embed Deleted",
+                description=f"Embed '**{embed_name}**' and its buttons have been successfully deleted.",
+                color=0x2F3136
+            )
         else:
-            # If buttons were successfully deleted, confirm deletion of both
-            await ctx.send(f"Embed '{embed_name}' and its buttons have been successfully deleted.", ephemeral=True)
+            if message == "No buttons found for this embed.":
+                success_embed = discord.Embed(
+                    title="<a:fire:1235847103041900554> Embed Deleted",
+                    description=f"Embed '**{embed_name}**' has been successfully deleted. No buttons were associated with this embed.",
+                    color=0x2F3136
+                )
+            else:
+                success_embed = discord.Embed(
+                    title="<a:fire:1235847103041900554> Embed Deleted (Partial)",
+                    description=f"Embed '**{embed_name}**' has been deleted, but there was an issue with button deletion: {message}",
+                    color=0x2F3136
+                )
+
+        success_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
+        success_embed.timestamp = discord.utils.utcnow()
+        await ctx.send(embed=success_embed, ephemeral=True)
 
 
     

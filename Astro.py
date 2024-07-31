@@ -64,7 +64,7 @@ intents.guild_reactions = True
 Eyes = アストロ(command_prefix=["*", "&"], intents=intents, help_command=None, owner_id=config['OWNER_ID'])
 
 @Eyes.main(name="reload_cog", help="Reloads a specified cog. Usage: !reload_cog <cog_directory>", aliases=['rc'])
-@commands.check(is_owner_ctx())
+@commands.is_owner()
 async def reload_cog(ctx, cog_directory: str):
     try:
         # Unload the cog first
@@ -128,12 +128,6 @@ async def kick(ctx, member: discord.Member):
     await ctx.guild.kick(member)
     await ctx.send(f"Kicked {member.mention} from the server.")
     
-    
-@kick.error
-async def kick_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("You don't have the required permissions to kick members.")
-    else:
-        await ctx.send(f"An error occurred: {error}")
+
 
 Eyes.run(config['トークン'])

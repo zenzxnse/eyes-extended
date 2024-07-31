@@ -4,6 +4,12 @@ import re
 from collections import defaultdict
 import asyncio, datetime
 from Augmentations.Ai.Gen_server import gen_server
+from Extensions.Utility.welcome import Welcome
+from Extensions.Utility.goodbye import Goodbye
+from Extensions.Utility.welcome import DB_PATH as WELCOME_DB_PATH
+from Extensions.Utility.goodbye import DB_PATH as GOODBYE_DB_PATH
+import aiosqlite
+
 # context : this is a command which generate the server using an external api which provides the server output based on these provided instruction : @server_instruct.txt
 class ConfirmView(discord.ui.View):
     def __init__(self):
@@ -225,22 +231,27 @@ async def create_channel(guild, category, channel_info, verified_role, verificat
     channel_name = channel_info['name']
     flags = channel_info['flags']
     
+    channel_kwargs = {
+        'name': channel_name,
+        'category': category,
+    }
+
     if channel_type == "Voice":
-        user_limit = flags.get('limit', 0)
-        new_channel = await guild.create_voice_channel(channel_name, category=category, user_limit=user_limit)
+        channel_kwargs['user_limit'] = flags.get('limit', 0)
+        new_channel = await guild.create_voice_channel(**channel_kwargs)
     elif channel_type == "Forum" and is_community:
         tags = [discord.ForumTag(name=tag) for tag in flags.get('tags', [])]
-        new_channel = await guild.create_forum(
-            name=channel_name,
-            category=category,
-            topic=flags.get('post_guidelines', ''),
-            available_tags=tags[:5],  # Discord allows up to 5 tags
-            default_reaction_emoji=flags.get('default_reaction')
-        )
+        channel_kwargs.update({
+            'topic': flags.get('post_guidelines', ''),
+            'available_tags': tags[:5],  # Discord allows up to 5 tags
+            'default_reaction_emoji': flags.get('default_reaction')
+        })
+        new_channel = await guild.create_forum(**channel_kwargs)
     elif channel_type == "Stage" and is_community:
-        new_channel = await guild.create_stage_channel(name=channel_name, category=category)
+        new_channel = await guild.create_stage_channel(**channel_kwargs)
     else:
-        new_channel = await guild.create_text_channel(channel_name, category=category)
+        new_channel = await guild.create_text_channel(**channel_kwargs)
+
     permission_updates = []
     
     if verification_channel:
@@ -295,7 +306,7 @@ async def create_channel(guild, category, channel_info, verified_role, verificat
     await asyncio.gather(*permission_updates)
     return new_channel
 
-async def execute_template(guild: discord.Guild, template_dict: dict, verification_channel: bool, ignore_category: discord.CategoryChannel = None, is_community: bool = False, interaction: discord.Interaction = None):
+async def execute_template(guild: discord.Guild, template_dict: dict, verification_channel: bool, ignore_category: discord.CategoryChannel = None, is_community: bool = False, interaction: discord.Interaction = None, welcome_system: bool = False):
     print("Executing template...")
     
     verified_role = None
@@ -303,18 +314,7 @@ async def execute_template(guild: discord.Guild, template_dict: dict, verificati
         verified_role = await guild.create_role(name="Verified Members")
         print("Created 'Verified Members' role")
 
-    category_tasks = []
-    for category_name, channels in template_dict.items():
-        if ignore_category and category_name == ignore_category.name:
-            category = ignore_category
-        else:
-            category = await guild.create_category(category_name)
-        
-        channel_tasks = [create_channel(guild, category, channel, verified_role, verification_channel, is_community) for channel in channels]
-        category_tasks.extend(channel_tasks)
-
-    await asyncio.gather(*category_tasks)
-
+    # Create verification category and channel first if enabled
     if verification_channel:
         print("Setting up verification system")
         verify_category = await guild.create_category("Verification", position=0)
@@ -341,6 +341,61 @@ async def execute_template(guild: discord.Guild, template_dict: dict, verificati
         view = VerifyButton()
         await webhook.send(embed=verification_embed, view=view, username=guild.name, avatar_url=avatar_url)
 
+    # Create categories and channels in batches
+    category_tasks = []
+    channel_tasks = []
+
+    for position, (category_name, channels) in enumerate(template_dict.items()):
+        if ignore_category and category_name == ignore_category.name:
+            category = ignore_category
+        else:
+            category_tasks.append(guild.create_category(category_name, position=position))
+
+    # Create all categories concurrently
+    categories = await asyncio.gather(*category_tasks)
+
+    for category, (category_name, channels) in zip(categories, template_dict.items()):
+        for channel_info in channels:
+            channel_tasks.append(create_channel(guild, category, channel_info, verified_role, verification_channel, is_community))
+
+    # Create all channels concurrently
+    await asyncio.gather(*channel_tasks)
+
+    if welcome_system:
+        print("Setting up welcome system")
+        welcome_category = await guild.create_category("Welcome", position=1)
+        welcome_channel = await guild.create_text_channel("💭︰welcome", category=welcome_category)
+        goodbye_channel = await guild.create_text_channel("💭︰goodbye", category=welcome_category)
+
+        print(f"Created welcome category: {welcome_category.name} (ID: {welcome_category.id})")
+        print(f"Created welcome channel: {welcome_channel.name} (ID: {welcome_channel.id})")
+        print(f"Created goodbye channel: {goodbye_channel.name} (ID: {goodbye_channel.id})")
+
+        # Enable welcome system
+        try:
+            async with aiosqlite.connect(WELCOME_DB_PATH) as db:
+                await db.execute("""INSERT OR REPLACE INTO welcome 
+                                 (guild_id, welcome_enabled, welcome_channel) 
+                                 VALUES (?, TRUE, ?)""", 
+                                 (guild.id, welcome_channel.id))
+                await db.commit()
+            print(f"Enabled welcome system for channel: {welcome_channel.name} (ID: {welcome_channel.id})")
+        except Exception as e:
+            print(f"Error enabling welcome system: {str(e)}")
+
+        # Enable goodbye system
+        try:
+            async with aiosqlite.connect(GOODBYE_DB_PATH) as db:
+                await db.execute("""INSERT OR REPLACE INTO goodbye 
+                                 (guild_id, goodbye_enabled, goodbye_channel) 
+                                 VALUES (?, TRUE, ?)""", 
+                                 (guild.id, goodbye_channel.id))
+                await db.commit()
+            print(f"Enabled goodbye system for channel: {goodbye_channel.name} (ID: {goodbye_channel.id})")
+        except Exception as e:
+            print(f"Error enabling goodbye system: {str(e)}")
+
+    if verification_channel and webhook:
         # Create and send webhook embed for template application notification
         webhook_embed = discord.Embed(
             title="Server Template Applied",
@@ -356,7 +411,7 @@ async def execute_template(guild: discord.Guild, template_dict: dict, verificati
     print("Template execution complete")
 
 
-async def process_template(interaction: discord.Interaction, template_dict: dict, verification_channel: bool, category_to_ignore: str = None, is_community: bool = False):
+async def process_template(interaction: discord.Interaction, template_dict: dict, verification_channel: bool, category_to_ignore: str = None, is_community: bool = False, welcome_system: bool = False):
     guild = interaction.guild
     if not guild:
         await interaction.followup.send("This command can only be used in a server.")
@@ -387,7 +442,7 @@ async def process_template(interaction: discord.Interaction, template_dict: dict
     except discord.errors.HTTPException:
         print("Failed to send followup message. Continuing with template execution.")
 
-    await execute_template(guild, template_dict, verification_channel, ignore_category, is_community, interaction)
+    await execute_template(guild, template_dict, verification_channel, ignore_category, is_community, interaction, welcome_system)
 
     try:
         await interaction.followup.send("Server template has been successfully applied!")

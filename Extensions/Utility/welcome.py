@@ -118,17 +118,28 @@ class Welcome(commands.Cog):
     @app_commands.describe(welcome_channel="The channel to send welcome messages in")
     async def welcome_enable(self, interaction: discord.Interaction, welcome_channel: discord.TextChannel):
         """
-        Enable welcome messages for the guild and set the welcome channel.
+        Enable welcome messages for the server.
 
         Args:
             interaction (discord.Interaction): The interaction object.
-            welcome_channel (discord.TextChannel): The channel where welcome messages will be sent.
+            welcome_channel (discord.TextChannel): The channel to send welcome messages in.
         """
+        # Check if the interaction is None (called programmatically)
+        if interaction is None:
+            guild_id = welcome_channel.guild.id
+        else:
+            guild_id = interaction.guild_id
+
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("INSERT OR REPLACE INTO welcome (guild_id, welcome_enabled, welcome_channel) VALUES (?, TRUE, ?)",
-                             (interaction.guild_id, welcome_channel.id))
+            await db.execute("""INSERT OR REPLACE INTO welcome 
+                             (guild_id, welcome_enabled, welcome_channel) 
+                             VALUES (?, TRUE, ?)""", 
+                             (guild_id, welcome_channel.id))
             await db.commit()
-        await interaction.response.send_message(f"Welcome messages enabled in {welcome_channel.mention}.")
+        
+        if interaction:
+            await interaction.response.send_message(f"Welcome messages enabled in {welcome_channel.mention}.")
+        print(f"Welcome system enabled for guild ID: {guild_id}, channel ID: {welcome_channel.id}")
 
     @welcome.command(name="disable", description="Disable welcome messages")
     async def welcome_disable(self, interaction: discord.Interaction):
@@ -454,7 +465,9 @@ class Welcome(commands.Cog):
             embed.description = self.format_string(embed_data['description'], member) if embed_data['description'] else f"Welcome to {member.guild.name}!"
             
             if embed_data['color']:
-                embed.color = discord.Color.from_str(embed_data['color'])
+                color = parse_color(embed_data['color'])
+                if color:
+                    embed.color = color
             if embed_data['footer_text']:
                 embed.set_footer(text=self.format_string(embed_data['footer_text'], member), icon_url=embed_data['footer_icon_url'])
             if embed_data['author_name']:

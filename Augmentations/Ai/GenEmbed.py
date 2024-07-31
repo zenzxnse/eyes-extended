@@ -1,7 +1,16 @@
-from groq import AsyncGroq
-import os
-from Global import config
+"""
+This module provides functionality for generating responses using the Groq API.
+It includes API key management, client rotation, and error handling.
+"""
 
+from groq import AsyncGroq
+from Global import config
+from Augmentations.eyehelper import load_instruction
+
+"""
+API keys are loaded from the config file.
+Multiple keys are used for load balancing and to handle rate limits.
+"""
 api_keys = [
     config['API_KEYS']['API_KEY_1'],
     config['API_KEYS']['API_KEY_2'],
@@ -10,11 +19,29 @@ api_keys = [
     config['API_KEYS']['API_KEY_5'],
 ]
 
-default_instructions = "You are a 目付き(Eyes) a discord bot, you are working in a confidential environment, keep your responses short and concise, and don't mention your name or mention the user unless it is necessary. only answer relevant questions, and don't make up new information. if you don't know the answer, say so, and don't make up new information. Make sure your answers are within 100 characters only exceeeding 100 characters when absolutely required."
+"""
+Helper function to load instructions from a file.
+"""
+def load_instruction(filename):
+    with open(filename, 'r', encoding='utf-8') as f:
+        return f.read()
+
+"""
+Initialize Groq clients with API keys and set up usage tracking.
+"""
 clients = [AsyncGroq(api_key=key) for key in api_keys]
 client_usage = {i: 0 for i in range(len(clients))}
 
-async def gen_response(history, instructions=default_instructions, command_request=None, user_name=None, user_mention=None):
+"""
+Load default instructions for the AI model.
+"""
+isntructions = load_instruction('Augmentations/Ai/ET.txt')
+
+"""
+Main function to generate responses using the Groq API.
+Handles message construction, client selection, and error handling.
+"""
+async def gen_response(history, instructions=isntructions, command_request=None, user_name=None, user_mention=None):
     messages = [
         {"role": "system", "content": instructions},
         *history,

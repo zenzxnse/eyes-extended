@@ -1,5 +1,4 @@
 test.py
-Global_Configurations.yml
 One_time_request.py
 output.wav
 sql_data_retriver.py
@@ -8,3 +7,6 @@ tts.py
 warn_db.db
 __pycache__/
 map_ai.drawio
+Global_Configurations.yml
+.vs
+

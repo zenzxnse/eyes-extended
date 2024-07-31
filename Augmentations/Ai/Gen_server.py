@@ -41,7 +41,7 @@ async def gen_server(history, instructions='Augmentations/Ai/server_instruct.txt
             model=config['MODEL_ID'],
             messages=messages,
             temperature=0.9,
-            max_tokens=8192,
+            max_tokens=8000,
             top_p=1,
             stream=True,
         )
