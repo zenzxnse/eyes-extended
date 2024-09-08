@@ -12,9 +12,6 @@ API keys are loaded from the config file.
 Multiple keys are used for load balancing and to handle rate limits.
 """
 api_keys = [
-    config['API_KEYS']['API_KEY_1'],
-    config['API_KEYS']['API_KEY_2'],
-    config['API_KEYS']['API_KEY_3'],
     config['API_KEYS']['API_KEY_4'],
     config['API_KEYS']['API_KEY_5'],
 ]
@@ -41,17 +38,11 @@ isntructions = load_instruction('Augmentations/Ai/ET.txt')
 Main function to generate responses using the Groq API.
 Handles message construction, client selection, and error handling.
 """
-async def gen_response(history, instructions=isntructions, command_request=None, user_name=None, user_mention=None):
+async def gen_embed(history, instructions=isntructions):
     messages = [
         {"role": "system", "content": instructions},
         *history,
     ]
-    if user_name:
-        messages.append({"role": "system", "name": "username", "content": f"user_name: {user_name} This is the name of the user."})
-    if user_mention:
-        messages.append({"role": "system", "name": "user_mention", "content": f"user_id : {user_mention} this is only required for executing commands, mainly the id.]"})
-    if command_request:
-        messages.append({"role": "system", "name": "command_info", "content": command_request})
 
     # Select the client with the least usage
     client_index = min(client_usage, key=client_usage.get)
@@ -89,6 +80,9 @@ async def gen_response(history, instructions=isntructions, command_request=None,
         # If rate limit is reached, try the next client
         if "Rate limit reached" in error_message:
             next_client_index = (client_index + 1) % len(clients)
-            return await gen_response(history, instructions, command_request, user_name, user_mention)
+            return await gen_embed(history, instructions)
 
         return "An error occurred while generating the response. Please try again later."
+    
+if __name__ == "__main__":
+    print(gen_embed("Generate a rule embed for the server. consisting of 10 rules, decorate it with emojies."))

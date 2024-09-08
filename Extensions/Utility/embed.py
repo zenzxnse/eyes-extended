@@ -1203,6 +1203,35 @@ class EmbedProject(commands.Cog):
                 if result:
                     return result[0]
                 return None
+            
+    async def rename_embed(self, user_id: int, old_name: str, new_name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("BEGIN TRANSACTION")
+            try:
+                # Check if the new name already exists
+                cursor = await db.execute("SELECT COUNT(*) FROM user_embeds WHERE user_id = ? AND embed_name = ?", (user_id, new_name))
+                result = await cursor.fetchone()
+                if result[0] > 0:
+                    await db.execute("ROLLBACK")
+                    return False, "An embed with this name already exists. Please choose a different name."
+
+                # Rename the embed in user_embeds table
+                await db.execute("UPDATE user_embeds SET embed_name = ? WHERE user_id = ? AND embed_name = ?", (new_name, user_id, old_name))
+
+                # Rename the embed in embed_fields table
+                await db.execute("UPDATE embed_fields SET embed_name = ? WHERE user_id = ? AND embed_name = ?", (new_name, user_id, old_name))
+
+                # Commit the transaction
+                await db.execute("COMMIT")
+
+                if db.total_changes > 0:
+                    return True, "Embed renamed successfully."
+                else:
+                    return False, "Failed to rename embed. The old name may not exist."
+
+            except Exception as e:
+                await db.execute("ROLLBACK")
+                return False, f"An error occurred while renaming the embed: {str(e)}"
 
     async def remove_field_from_embed(self, user_id, embed_name, field_id):
         async with aiosqlite.connect(self.db_path) as db:
@@ -1314,6 +1343,29 @@ class EmbedProject(commands.Cog):
                 return True, "Buttons deleted successfully."
             else:
                 return False, "No buttons found for this embed."
+            
+    @embed.command(name="rename", description="Rename an existing embed")
+    @app_commands.describe(current_name="Current name of the embed", new_name="New name for the embed")
+    async def rename_embed_command(self, interaction: discord.Interaction, current_name: str, new_name: str):
+        user_id = interaction.user.id
+        success, message = await self.rename_embed(user_id, current_name, new_name)
+        
+        if success:
+            embed = discord.Embed(
+                title="<:5068file:1233764689071046687> Embed Renamed",
+                description=f"Successfully renamed embed from '**{current_name}**' to '**{new_name}**'.",
+                color=0x2F3136
+            )
+        else:
+            embed = discord.Embed(
+                title="<:1001timeout:1233770920099844227> Rename Failed",
+                description=message,
+                color=0xFF0000
+            )
+        
+        embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
+        embed.timestamp = discord.utils.utcnow()
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
     @embed.command(name="builder", description="Create or modify an existing embed")
     @app_commands.describe(embed_name="Name of the embed to edit")
@@ -1932,6 +1984,16 @@ class EmbedProject(commands.Cog):
         success_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.avatar.url)
         success_embed.timestamp = discord.utils.utcnow()
         await ctx.send(embed=success_embed, ephemeral=True)
+
+    async def get_user_embeds(self, user_id: int):
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT embed_name FROM user_embeds WHERE user_id = ?", (user_id,)) as cursor:
+                return await cursor.fetchall()
+
+    async def embed_exists(self, user_id: int, embed_name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT 1 FROM user_embeds WHERE user_id = ? AND embed_name = ?", (user_id, embed_name)) as cursor:
+                return await cursor.fetchone() is not None
 
 
     
