@@ -6,12 +6,14 @@ from Augmentations.eyehelper import load_instruction
 from Extensions.Utility.embed import EmbedProject
 import re
 import random
+from Augmentations.Optimizations.serverSetup import ServerSetup, FeatureSelectionView, FinalConfirmationView, RoleDescriptionView, RoleConfirmationView, ServerDescriptionView, ThemeSelectionView, ServerSetupEmbeds, ThemeTypeView
 
-class AI_Embed_Gen(commands.GroupCog, name="ai", description="Generate embeds using AI"):
+class AI_Cog(commands.GroupCog, name="ai", description="Generate embeds using AI"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.embed_project = EmbedProject(bot)
         self.instructions = load_instruction("Augmentations/Ai/ET.txt")
+        self.server_setup = ServerSetup(bot)
 
     embed = app_commands.Group(name="embed", description="Generate embeds using AI")
     
@@ -81,6 +83,34 @@ class AI_Embed_Gen(commands.GroupCog, name="ai", description="Generate embeds us
         except Exception as e:
             await interaction.followup.send(f"An error occurred while saving the embed: {str(e)}. Please try again later or use the `/suggestion` command to report this issue.", ephemeral=True)
 
+    server = app_commands.Group(name="server", description="Setup your server with AI")
+    @server.command(name="setup", description="Setup your server with AI")
+    async def ai_server_setup(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        initial_embed = ServerSetupEmbeds.initial_embed()
+        
+        view = ThemeTypeView(interaction)
+        await interaction.followup.send(embed=initial_embed, view=view)
+        
+        await view.wait()
+        if view.value is None:
+            await interaction.followup.send("Setup timed out. Please try again.")
+            return
+        
+        theme_type = view.value
+        theme, description = await self.server_setup.theme_selection(interaction, theme_type)
+        if theme is None or description is None:
+            return  # User cancelled or timed out during theme selection or description
+
+        result = await self.server_setup.generate_layout(interaction, theme_type, theme, description)
+        if result is None:
+            return  # Setup was cancelled or timed out
+
+        theme_type, theme, description, template_dict = result
+
+        # Proceed to feature selection
+        await self.server_setup.feature_selection(interaction, theme_type, theme, description, template_dict)
+
     def extract_embed_data(self, ai_response):
         # Extract embed properties using regex
         title_match = re.search(r'\[title \{-m (.*?)\}\]', ai_response)
@@ -127,4 +157,4 @@ class AI_Embed_Gen(commands.GroupCog, name="ai", description="Generate embeds us
         return embed_data
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(AI_Embed_Gen(bot))
+    await bot.add_cog(AI_Cog(bot))

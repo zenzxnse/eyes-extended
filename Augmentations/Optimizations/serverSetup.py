@@ -3,14 +3,12 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import asyncio, os
+import asyncio, os, re
 from Augmentations.Ai.Gen_server import gen_server
-from Augmentations.Optimizations.Execute_template import rep_to_dict, show_template, process_template
+from Augmentations.Optimizations.Execute_template import rep_to_dict, process_template
 from Augmentations.Optimizations.Role_Creation import show_roles, role_rep_to_dict, execute_roles
 from Augmentations.Ai.Gen_role import gen_role
-
-
-
+from abc import ABC, abstractmethod
 
 """ 
 raw emoji data
@@ -37,6 +35,9 @@ raw emoji data
 \<:t_Yes:1223251041231831174> - pink neon yes 
 \<:no:1223251335839744081> - yellow neon no 
 \<:Warning:1226651115181965413> - warning.
+<:8355saturn:1233771388502937670> Saturn vibrant
+<:73914home:1233771403845566504> home icon
+<:2947joinicon:1233771444089913406> green join icon
 """
 
 
@@ -45,13 +46,23 @@ raw emoji data
 
 ######################################################################################################################################
 # <<<-------------------------------------------------------- S E R V E R S E T U P E M B E D S --------------------------------------------------------->>>
+
+#98b5ad
+#9e98b5
+#60566e
+#666e56
+
+import random
+
 class ServerSetupEmbeds:
+    colors = [0xffffda, 0x7a8067, 0xcfd2d8, 0xd9d4cc, 0x00cc99, 0x302c29, 0xffffcc, 0xb6c5f1]
+
     @staticmethod
     def initial_embed():
         embed = discord.Embed(
             title="<:3726discordlogo:1233770935971090472> Discord Server Setup Wizard <:3726discordlogo:1233770935971090472>",
             description="Welcome to the Discord Server Setup Wizard! This tool will guide you through creating a customized server in just a few steps.\n\n<:7473star:1233771382559473735> Let's embark on this exciting journey together! <:7473star:1233771382559473735>",
-            color=discord.Color.blue()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<:7664book:1204768405513834576> Setup Process", value=
             "1. <:875710295253848144:1204685630534328330> Choose Theme Type\n"
@@ -72,7 +83,7 @@ class ServerSetupEmbeds:
         embed = discord.Embed(
             title="<:875710295253848144:1204685630534328330> Step 1: Choose Theme Type <:875710295253848144:1204685630534328330>",
             description="Select the type of theme you'd like for your server. This will determine the pool of specific themes available in the next step.",
-            color=discord.Color.green()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<:3726discordlogo:1233770935971090472> Default Themes", value="Professionally curated themes suitable for various server types.", inline=False)
         embed.add_field(name="<:artist_cc:1234126741593784330> Community Themes", value="Unique, user-created themes for more specialized server concepts.", inline=False)
@@ -85,7 +96,7 @@ class ServerSetupEmbeds:
         embed = discord.Embed(
             title="<:875710295866216509:1204685651107254273> Step 2: Select Specific Theme <:875710295866216509:1204685651107254273>",
             description="Now, choose a specific theme that best fits your server's purpose and style.",
-            color=discord.Color.gold()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<:7473star:1233771382559473735> Theme Options", value="Each theme comes with pre-designed channels, roles, and server structure.", inline=False)
         embed.add_field(name="<:68886roboticon:1233771391245877278> AI Customization", value="Don't worry if it's not perfect - our AI will further customize it based on your description!", inline=False)
@@ -96,9 +107,9 @@ class ServerSetupEmbeds:
     @staticmethod
     def server_description_embed():
         embed = discord.Embed(
-            title="<:875710296071757824:1204685669507534858> Step 3: Describe Your Dream Server <:875710296071757824:1204685669507534858>",
+            title="<:875710296071757824:1204685669507534858> Step 3: Describe Your Server <:875710296071757824:1204685669507534858>",
             description="Paint a vivid picture of the server you wish to create. Our AI will use this to generate a custom layout.",
-            color=discord.Color.purple()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<:7664book:1204768405513834576> What to Include", value=
             "• Server purpose\n"
@@ -118,7 +129,7 @@ class ServerSetupEmbeds:
         embed = discord.Embed(
             title="<:9659nachessicon:1233771487102636152> Step 5: Feature Selection <:9659nachessicon:1233771487102636152>",
             description="Enhance your server with additional features. Select the ones you'd like to include.",
-            color=discord.Color.teal()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<a:wave_animated:1204684574802714674> Welcome System", value=
             "Automatically greet new members with a customized message.\n"
@@ -149,7 +160,7 @@ class ServerSetupEmbeds:
         embed = discord.Embed(
             title="<:9659nachessicon:1233771487102636152> Role Generation <:9659nachessicon:1233771487102636152>",
             description="Let's create a custom role hierarchy for your server. Describe the roles you want, and our AI will generate them.",
-            color=discord.Color.orange()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<:7664book:1204768405513834576> What to Include", value=
             "• Role names\n"
@@ -169,7 +180,7 @@ class ServerSetupEmbeds:
         embed = discord.Embed(
             title="<:3651check:1233771355451686974> Final Review <:3651check:1233771355451686974>",
             description="We're almost done! Let's review your server setup before we create it.",
-            color=discord.Color.dark_purple()
+            color=random.choice(ServerSetupEmbeds.colors)
         )
         embed.add_field(name="<:3726discordlogo:1233770935971090472> Theme Type", value=f"**{theme_type.capitalize()}**\nThis determines the overall style of your server.", inline=False)
         embed.add_field(name="<:8355moon:1233771385839681566> Specific Theme", value=f"**{theme}**\nThis provides the base structure for your server.", inline=False)
@@ -184,7 +195,7 @@ class ServerSetupEmbeds:
 
 ######################################################################################################################################
 # <<<-------------------------------------------------------- S E R V E R S E T U P --------------------------------------------------------->>>
-class ServerSetup(commands.Cog):
+class ServerSetup(ABC):
     def __init__(self, bot):
         self.bot = bot
         self.default_themes = self.load_themes('DT')
@@ -197,92 +208,168 @@ class ServerSetup(commands.Cog):
             if file.endswith('.txt'):
                 themes[file[:-4]] = os.path.join(path, file)
         return themes
-
-    @app_commands.command(name="server_setup", description="Start the server setup process")
-    async def server_setup(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        initial_embed = ServerSetupEmbeds.initial_embed()
-        
-        view = ThemeTypeView()
-        await interaction.followup.send(embed=initial_embed, view=view)
-        
-        await view.wait()
-        if view.value is None:
-            await interaction.followup.send("Setup timed out. Please try again.")
-            return
-        
-        await self.theme_selection(interaction, view.value)
     
+    async def show_template(self, ai_response: str, verification_channel: bool, interaction: discord.Interaction):
+        # Extract and format the main template structure
+        template_lines = []
+        current_category = None
+        channel_name_pattern = re.compile(r'"""(.*?)"""')
+
+        for line in ai_response.split('\n'):
+            line = line.strip()
+            if line.startswith('Category:'):
+                current_category = line[len('Category:'):].strip()
+                emoji = "<:6375moreoptions:1233770886738350103>"
+                template_lines.append(f"{emoji} **{current_category}**:")
+            elif line.startswith('- ') and current_category:
+                # Extract channel type and name
+                match = re.match(r'-\s*(Channel|Voice|Forum|Stage):\s*"""(.*?)"""(?:\s*\((.*?)\))?', line)
+                if match:
+                    channel_type = match.group(1)
+                    channel_name = match.group(2)
+                    flags_str = match.group(3)
+
+                    # Determine emoji based on channel type and flags
+                    emoji = "<:3280text:1233770867914440874>"
+                    if channel_type == "Voice":
+                        emoji = "<:7032voice:1233770862633811979>"
+                    elif channel_type == "Forum":
+                        emoji = "<:5971forum:1233770836465418291>"
+                    elif channel_type == "Stage":
+                        emoji = "🎭"
+
+                    # Check for specific flags that modify the emoji
+                    if flags_str:
+                        flags = [flag.strip() for flag in flags_str.split(',')]
+                        if any('Mod_Only' in flag for flag in flags):
+                            emoji = "<:2064textlocked:1233770845634035794>" if channel_type != "Voice" else "<:6444voicelocked:1233770856141029406>"
+                            emoji += " <:7715betamemberbadge:1233771451744653402>"
+                        elif any('Private' in flag for flag in flags):
+                            emoji = "<:2064textlocked:1233770845634035794>" if channel_type != "Voice" else "<:6444voicelocked:1233770856141029406>"
+                    
+                    template_lines.append(f"> {emoji} {channel_name}")
+            
+        # Join the formatted lines
+        formatted_template = '\n'.join(template_lines)
+        color = random.choice(ServerSetupEmbeds.colors)
+        embed = discord.Embed(
+            title="**Your Server:**",
+            description=f"\n{formatted_template}\n\n```yml\n---------------------------------------------```\n\n",
+            color=color
+        )
+        embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild and interaction.guild.icon else interaction.user.display_avatar.url)
+        embed.add_field(
+            name="<:PinkModeratorShield:1226653308618276894> | **Parameters and their meanings**",
+            value=(
+                "> **(Private)** - __This channel is only visible to specific roles.__\n"
+                "> **(Read_Only)** - __Members can read but not write in this channel.__\n"
+                "> **(Mod_Only)** - __This channel is only visible to moderators.__\n"
+                "> **(No_Threads)** - __Thread creation is disabled in this channel.__\n"
+                "> **(Slow_Mode)** - __Slow mode is enabled (30 seconds delay between messages).__\n"
+                "> **(NSFW)** - __This channel is marked as Not Safe For Work.__\n"
+                "> **(File_Upload)** - __File uploads are allowed in this channel.__\n"
+                "> **(No_Reactions)** - __Reactions are disabled in this channel.__\n"
+                "> **(limit X)** - __For voice channels, sets a user limit where X is the maximum number of users.__"
+            ),
+            inline=True
+        )
+
+        embed.add_field(
+            name="<:Warning:1226652993089441972> | **Warning**",
+            value="**> __If there are any additional text in brackets following the channel names in the server structure, except for the provided parameters, or there's nothing at all then please refrain from any further actions and restart the whole process.__**",
+            inline=True
+        )
+
+        embed.set_footer(
+            icon_url=self.bot.user.display_avatar.url,
+            text="-# This is the server structure template that will be generated. Please confirm to proceed | BY USING THIS BOT, YOU AGREE THAT WE ARE NOT LIABLE FOR ANY DATA LOSS INCURRED DURING ITS OPERATION"
+        )        
+        
+        # Add verification system info if enabled
+        if verification_channel:
+            embed.add_field(name="Verification System", value="Enabled", inline=False)
+        
+        return embed, formatted_template
+
     async def theme_selection(self, interaction: discord.Interaction, theme_type):
         themes = self.community_themes if theme_type == "community" else self.default_themes
-        view = ThemeSelectionView(themes)
+        view = ThemeSelectionView(themes, interaction)
         embed = ServerSetupEmbeds.theme_selection_embed()
         await interaction.edit_original_response(embed=embed, view=view)
         
         await view.wait()
         if view.value is None:
             await interaction.followup.send("Theme selection timed out. Please try again.")
-            return
+            return None, None
         
-        await self.server_description(interaction, theme_type, view.value)
+        theme = view.value
+        description = await self.server_description(interaction, theme_type, theme)
+        if description is None:
+            return None, None
+        
+        return theme, description
 
     async def server_description(self, interaction: discord.Interaction, theme_type, theme):
-        view = ServerDescriptionView()
+        view = ServerDescriptionView(interaction)
         embed = ServerSetupEmbeds.server_description_embed()
         await interaction.edit_original_response(embed=embed, view=view)
         
         await view.wait()
         if view.value is None:
             await interaction.followup.send("Description input timed out. Please try again.")
-            return
+            return None
         
-        await self.generate_layout(interaction, theme_type, theme, view.value)
+        return view.value
 
     async def generate_layout(self, interaction: discord.Interaction, theme_type, theme, description):
-        """
-        Generates and displays the server layout based on user input.
-
-        This method uses the selected theme and user description to generate a server layout.
-        It then displays the layout for user review and waits for confirmation before proceeding
-        to the feature selection step.
-
-        Args:
-            interaction (discord.Interaction): The interaction object from the command invocation.
-            theme_type (str): The type of theme selected ('community' or 'default').
-            theme (str): The specific theme selected by the user.
-            description (str): The user-provided server description.
-
-        Returns:
-            None
-        """
         embed = discord.Embed(title="Generating Layout", description="Please wait while we generate your server layout...", color=discord.Color.blue())
         await interaction.edit_original_response(embed=embed, view=None)
         
         theme_file = self.community_themes[theme] if theme_type == "community" else self.default_themes[theme]
-        layout = await gen_server([{"role": "user", "content": description}], instructions=theme_file)
         
-        while layout is None:
+        attempts = 0
+        max_attempts = 3
+        while attempts < max_attempts:
             layout = await gen_server([{"role": "user", "content": description}], instructions=theme_file)
-        
-        template_dict = rep_to_dict(layout)
-        embed, view, formatted_template = await show_template(layout, False)
-        view.original_description = description
-        view.original_template = layout
-        await interaction.edit_original_response(embed=embed, view=view)
-        
-        await view.wait()
-        if view.value is None:
+            
+            if layout is not None:
+                template_dict = rep_to_dict(layout)
+                if template_dict:
+                    break
+            
+            attempts += 1
+            if attempts == max_attempts:
+                await interaction.followup.send("Failed to generate a valid layout after multiple attempts. Please try again.", ephemeral=True)
+                await interaction.followup.send(f"Raw layout:\n```\n{layout}\n```", ephemeral=True)
+                return None
+
+        embed, formatted_template = await self.show_template(layout, False, interaction)
+        server_setup_view = ServerSetupView(
+            interaction,
+            self.bot,
+            False,  # verification_channel
+            False,  # welcome_system
+            None,   # category_to_ignore
+            theme_type == "community",
+            description,
+            layout
+        )
+        server_setup_view.template = template_dict
+        await interaction.edit_original_response(embed=embed, view=server_setup_view)
+
+        await server_setup_view.wait()
+        if server_setup_view.value is None:
             await interaction.followup.send("Layout review timed out. Please try again.")
-            return
-        
-        if not view.value:
+            return None
+
+        if not server_setup_view.value:
             await interaction.followup.send("Setup cancelled.")
-            return
-        
-        await self.feature_selection(interaction, theme_type, theme, description, template_dict)
+            return None
+
+        return theme_type, theme, description, template_dict
 
     async def feature_selection(self, interaction: discord.Interaction, theme_type, theme, description, template_dict):
-        view = FeatureSelectionView()
+        view = FeatureSelectionView(interaction)
         embed = ServerSetupEmbeds.feature_selection_embed()
         await interaction.edit_original_response(embed=embed, view=view)
         
@@ -298,7 +385,7 @@ class ServerSetup(commands.Cog):
 
     async def role_generation(self, interaction: discord.Interaction):
         while True:
-            view = RoleDescriptionView()
+            view = RoleDescriptionView(interaction)
             embed = ServerSetupEmbeds.role_generation_embed()
             await interaction.edit_original_response(embed=embed, view=view)
             
@@ -311,6 +398,7 @@ class ServerSetup(commands.Cog):
             roles_dict = role_rep_to_dict(ai_response)
             
             embed, confirm_view = await show_roles(ai_response)
+            confirm_view = RoleConfirmationView(interaction)
             await interaction.edit_original_response(embed=embed, view=confirm_view)
             
             await confirm_view.wait()
@@ -325,7 +413,7 @@ class ServerSetup(commands.Cog):
     async def final_review(self, interaction: discord.Interaction, theme_type, theme, description, template_dict, welcome_system, verification_system, roles):
         embed = ServerSetupEmbeds.final_review_embed(theme_type, theme, welcome_system, verification_system, roles)
         
-        view = FinalConfirmationView()
+        view = FinalConfirmationView(interaction)
         await interaction.edit_original_response(embed=embed, view=view)
         
         await view.wait()
@@ -361,15 +449,105 @@ class ServerSetup(commands.Cog):
 ######################################################################################################################################
 # <<<-------------------------------------------------------- V I E W S --------------------------------------------------------->>>
 
+
+
+class ServerSetupView(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction, bot, verification_channel, welcome_system, category_to_ignore, is_community, original_description, original_template):
+        super().__init__()
+        self.bot = bot
+        self.template = None
+        self.verification_channel = verification_channel
+        self.welcome_system = welcome_system
+        self.category_to_ignore = category_to_ignore
+        self.is_community = is_community
+        self.original_description = original_description
+        self.original_template = original_template
+        self.value = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
+
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
+        self.value = True
+        self.stop()
+
+    @discord.ui.button(label="Regenerate", style=discord.ButtonStyle.secondary)
+    async def regenerate(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
+        modal = RegenerateModal(self, self.bot)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
+        self.value = False
+        self.stop()
+
+class RegenerateModal(discord.ui.Modal, title="Regenerate Template"):
+    changes = discord.ui.TextInput(label="Describe your changes", style=discord.TextStyle.paragraph)
+
+    def __init__(self, view: ServerSetupView, bot):
+        super().__init__()
+        self.view = view
+        self.bot = bot
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        
+        history = [
+            {"role": "user", "content": self.view.original_description},
+            {"role": "assistant", "content": self.view.original_template},
+            {"role": "user", "content": f"Please make the following changes to the template: {self.changes.value}"}
+        ]
+
+        new_response = await gen_server(history)
+        new_template_dict = rep_to_dict(new_response)
+        self.view.template = new_template_dict
+        cog = self.bot.get_cog("setup")  # Ensure this matches your cog's name
+
+        if cog is None:
+            await interaction.followup.send("ServerSetup cog is not loaded correctly.", ephemeral=True)
+            return
+
+        try:
+            # Corrected unpacking: only two values expected
+            new_embed, formatted_template = await cog.show_template(new_response, self.view.verification_channel, interaction)
+
+            self.view.original_template = new_response
+
+            await interaction.message.edit(embed=new_embed, view=self.view)
+            await interaction.followup.send("Template regenerated successfully!", ephemeral=True)
+
+        except Exception as e:
+            print(f"Error in regenerating template: {e}")
+            await interaction.followup.send(f"An error occurred while regenerating the template: {e}", ephemeral=True)
+
+
 ######################################################################################################################################
 # <<<-------------------------------------------------------- T H E M E T Y P E V I E W --------------------------------------------------------->>>
 class ThemeTypeView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.value = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
 
     @discord.ui.button(label="Community Theme", style=discord.ButtonStyle.primary)
     async def community(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         if 'COMMUNITY' not in interaction.guild.features:
             await interaction.response.send_message("This option is only available for Community-enabled servers. Please enable Community features for your server or choose the Default Theme.", ephemeral=True)
             return
@@ -378,6 +556,9 @@ class ThemeTypeView(discord.ui.View):
 
     @discord.ui.button(label="Default Theme", style=discord.ButtonStyle.secondary)
     async def default(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         self.value = "default"
         self.stop()
 # <<<-------------------------------------------------------- E N D T H E M E T Y P E V I E W --------------------------------------------------------->>>
@@ -386,12 +567,19 @@ class ThemeTypeView(discord.ui.View):
 ######################################################################################################################################
 # <<<-------------------------------------------------------- T H E M E S E L E C T I O N V I E W --------------------------------------------------------->>>
 class ThemeSelectionView(discord.ui.View):
-    def __init__(self, themes):
+    def __init__(self, themes, interaction: discord.Interaction):
         super().__init__()
         self.value = None
+        self.original_interaction = interaction
         self.add_item(ThemeDropdown(themes, self.on_select))
 
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
+
     async def on_select(self, interaction: discord.Interaction, value):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this dropdown.", ephemeral=True)
+            return
         self.value = value
         await interaction.response.defer()
         self.stop()
@@ -414,12 +602,19 @@ class ThemeDropdown(discord.ui.Select):
 ######################################################################################################################################
 # <<<-------------------------------------------------------- S E R V E R D E S C R I P T I O N V I E W --------------------------------------------------------->>>
 class ServerDescriptionView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.value = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
 
     @discord.ui.button(label="Describe Server", style=discord.ButtonStyle.primary)
     async def describe(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         modal = ServerDescriptionModal()
         await interaction.response.send_modal(modal)
         self.value = await modal.wait()
@@ -445,12 +640,16 @@ class ServerDescriptionModal(discord.ui.Modal, title="Describe Your Server"):
 ######################################################################################################################################
 # <<<-------------------------------------------------------- F E A T U R E S E L E C T I O N V I E W --------------------------------------------------------->>>
 class FeatureSelectionView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.welcome_system = False
         self.verification_system = False
         self.role_generation = False
         self.interaction = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
 
     @discord.ui.select(placeholder="Select additional features...", min_values=0, max_values=3, options=[
         discord.SelectOption(label="Welcome System", value="welcome"),
@@ -458,6 +657,9 @@ class FeatureSelectionView(discord.ui.View):
         discord.SelectOption(label="Role Generation", value="roles")
     ])
     async def select_features(self, interaction: discord.Interaction, select: discord.ui.Select):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this dropdown.", ephemeral=True)
+            return
         self.welcome_system = "welcome" in select.values
         self.verification_system = "verification" in select.values
         self.role_generation = "roles" in select.values
@@ -465,6 +667,9 @@ class FeatureSelectionView(discord.ui.View):
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.primary)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         self.interaction = interaction
         self.stop()
 # <<<-------------------------------------------------------- E N D F E A T U R E S E L E C T I O N V I E W --------------------------------------------------------->>>
@@ -473,17 +678,27 @@ class FeatureSelectionView(discord.ui.View):
 ######################################################################################################################################
 # <<<-------------------------------------------------------- F I N A L C O N F I R M A T I O N V I E W --------------------------------------------------------->>>
 class FinalConfirmationView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.value = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         self.value = True
         self.stop()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         self.value = False
         self.stop()
 # <<<-------------------------------------------------------- E N D F I N A L C O N F I R M A T I O N V I E W --------------------------------------------------------->>>
@@ -492,12 +707,19 @@ class FinalConfirmationView(discord.ui.View):
 ######################################################################################################################################
 # <<<-------------------------------------------------------- R O L E D E S C R I P T I O N V I E W --------------------------------------------------------->>>
 class RoleDescriptionView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.value = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
 
     @discord.ui.button(label="Describe Roles", style=discord.ButtonStyle.primary)
     async def describe(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         modal = RoleDescriptionModal()
         await interaction.response.send_modal(modal)
         self.value = await modal.wait()
@@ -523,24 +745,37 @@ class RoleDescriptionModal(discord.ui.Modal, title="Describe Your Server Roles")
 ######################################################################################################################################
 # <<<-------------------------------------------------------- R O L E C O N F I R M A T I O N V I E W --------------------------------------------------------->>>
 class RoleConfirmationView(discord.ui.View):
-    def __init__(self):
+    def __init__(self, interaction: discord.Interaction):
         super().__init__()
         self.value = None
+        self.original_interaction = interaction
+
+    def check_user(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.original_interaction.user.id
 
     @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         await interaction.response.defer()
         self.value = True
         self.stop()
 
     @discord.ui.button(label="Regenerate", style=discord.ButtonStyle.primary)
     async def regenerate(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         await interaction.response.defer()
         self.value = "regenerate"
         self.stop()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_user(interaction):
+            await interaction.response.send_message("You are not authorized to use this button.", ephemeral=True)
+            return
         await interaction.response.defer()
         self.value = False
         self.stop()

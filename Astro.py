@@ -28,11 +28,9 @@ class アストロ(commands.AutoShardedBot):
         print(f"{Fore.GREEN}Synced {len(synced)} commands{Style.RESET_ALL}")
         print(f"{Fore.GREEN}Adding views...{Style.RESET_ALL}")
         dynamic_button_view = DynamicButtonView(self)
-        await dynamic_button_view.load_all_buttons()  # we load all buttons first
+        await dynamic_button_view.load_all_buttons()
         self.add_view(dynamic_button_view)
         self.add_view(Testview())
-        
-        # make things persistent
         self.add_view(VerifyButton())
         
         print(f"{Fore.GREEN}Views Added{Style.RESET_ALL}")
@@ -127,7 +125,56 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 async def kick(ctx, member: discord.Member):
     await ctx.guild.kick(member)
     await ctx.send(f"Kicked {member.mention} from the server.")
-    
 
+@Eyes.main(
+    name="list_all_commands",
+    help="Lists all text-based and slash commands with their descriptions.",
+    aliases=['lac']
+)
+@commands.check(is_owner_ctx())
+async def list_all_commands(ctx):
+    # Fetch text-based commands
+    text_commands = [
+        f"**{command.name}**: {command.help or 'No description provided.'}"
+        for command in Eyes.commands
+    ]
+
+    # Fetch slash commands
+    try:
+        slash_commands = await Eyes.tree.fetch_commands()
+    except Exception as e:
+        await ctx.send(f"An error occurred while fetching slash commands: {e}")
+        return
+
+    slash_commands_list = [
+        f"**/{cmd.name}**: {cmd.description or 'No description provided.'}"
+        for cmd in slash_commands
+    ]
+
+    # Create embed for text-based commands
+    embed_text = discord.Embed(
+        title="📜 Text-Based Commands",
+        description="\n".join(text_commands) if text_commands else "No text-based commands found.",
+        color=0x3498db
+    )
+
+    # Check if the description exceeds Discord's limit
+    if len(embed_text.description) > 2048:
+        embed_text.description = embed_text.description[:2045] + "..."
+
+    # Create embed for slash (application) commands
+    embed_slash = discord.Embed(
+        title="✨ Slash (Application) Commands",
+        description="\n".join(slash_commands_list) if slash_commands_list else "No slash commands found.",
+        color=0x2ecc71
+    )
+
+    # Check if the description exceeds Discord's limit
+    if len(embed_slash.description) > 4000:
+        embed_slash.description = embed_slash.description[:3997] + "..."
+
+    # Send both embeds sequentially
+    await ctx.send(embed=embed_text)
+    await ctx.send(embed=embed_slash)
 
 Eyes.run(config['トークン'])

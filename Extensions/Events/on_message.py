@@ -87,18 +87,20 @@ class OnMessage(commands.Cog):
             self.user_cooldowns[user_id] = current_time
 
             if message.content.strip() == f"<@{self.bot.user.id}>":
-                await message.reply("Info on how to use the bot\n```None```", mention_author=False)
+                await message.reply("Info on how to use the bot\n```None```", mention_author=False, delete_after=3)
             else:
                 async with message.channel.typing():
                     self.update_channel_history(message.channel.id, "user", message.content)
-                    
+
+                    # Extract image URL if present
+                    image_data = message.attachments[0].url if message.attachments else None
+
                     response = await gen_response(
-                        instructions=self.instructions,
                         history=self.channel_histories[message.channel.id],
                         user_name=message.author.name,
-                        user_mention=f"<@{message.author.id}>"
+                        user_mention=f"<@{message.author.id}>",
+                        image_data=image_data  # Pass image data to gen_response
                     )
-                    self.update_channel_history(message.channel.id, "assistant", response)
                     for i in range(0, len(response), 2000):
                         await message.reply(response[i:i+2000], mention_author=False)
         else:

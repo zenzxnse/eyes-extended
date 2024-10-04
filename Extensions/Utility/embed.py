@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 from Extensions.Utility.roles import RoleMenuView  # Import the RoleMenuView class
 from typing import Optional
 from discord import app_commands, Webhook, TextChannel, HTTPException, Interaction
-import datetime
+import datetime, random
+from Augmentations.Optimizations.embed_guide import EmbedManual, colors, EmbedPages, EmbedManualView
 
 # import logging
 
@@ -1087,6 +1088,7 @@ class EmbedProject(commands.Cog):
         self.bot = bot
         self.db_path = "db/embeds.db"
         self.bot.loop.create_task(self.setup_db())
+        self.embed_pages = EmbedPages(bot)
     
     embed = discord.app_commands.Group(name="embed", description="Commands to manage or create embeds")
     async def setup_db(self):
@@ -1395,7 +1397,7 @@ class EmbedProject(commands.Cog):
                 "<a:83888settingsanimation:1233771395415015524> **Your New Embed**\n"
                 "-# This is your new embed. Use the buttons below to modify it."
             )
-            default_color = 0x2F3136
+            default_color = random.choice(colors)
             await self.save_user_embeds(
                 interaction.user.id, embed_name,
                 title=default_title, description=default_description, color=default_color
@@ -1407,13 +1409,22 @@ class EmbedProject(commands.Cog):
                 error_embed = discord.Embed(
                     title="<:1001timeout:1233770920099844227> Error",
                     description="Failed to create a new embed.",
-                    color=0xFF0000
+                    color=discord.Color.dark_blue()
                 )
                 error_embed.set_footer(text=f"Requested by {interaction.user}", icon_url=interaction.user.avatar.url)
                 error_embed.timestamp = discord.utils.utcnow()
                 await interaction.response.send_message(embed=error_embed, ephemeral=True)
-    
-    @app_commands.command(name="through-webhook", description="Send an embed through a webhook")
+
+    @embed.command(
+        name="manual",
+        description="Shows a comprehensive guide on how to create and manage embeds."
+    )
+    async def embed_manual(self, interaction: discord.Interaction):
+        """Sends the embed manual with navigation buttons."""
+        view = EmbedManualView(self.embed_pages.pages)
+        await interaction.response.send_message(embed=self.embed_pages.pages[0], view=view, ephemeral=True)
+
+    @embed.command(name="through-webhook", description="Send an embed through a webhook")
     @app_commands.describe(
         embed_name="Name of the embed to send",
         webhook_url="URL of the webhook to use (optional, can't send buttoned embeds)",
@@ -1894,7 +1905,7 @@ class EmbedProject(commands.Cog):
         await interaction.response.send_message(embed=success_embed, ephemeral=True)
 
 
-    @commands.hybrid_command(name="show", description="~(=^‥^)ノ Display a saved embed by name", aliases=["display", "s"])
+    @commands.hybrid_command(name="show", description="~(=^‥^)ノ Display a saved embed by name *s, *show, *display", aliases=["display", "s"])
     @app_commands.describe(embed_name="Name of the embed to display")
     async def show(self, ctx: commands.Context, embed_name: str):
         try:

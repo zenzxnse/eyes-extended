@@ -124,11 +124,8 @@ class Welcome(commands.Cog):
             interaction (discord.Interaction): The interaction object.
             welcome_channel (discord.TextChannel): The channel to send welcome messages in.
         """
-        # Check if the interaction is None (called programmatically)
-        if interaction is None:
-            guild_id = welcome_channel.guild.id
-        else:
-            guild_id = interaction.guild_id
+        guild_id = interaction.guild_id
+        channel = welcome_channel or interaction.channel
 
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute("""INSERT OR REPLACE INTO welcome 
@@ -139,7 +136,7 @@ class Welcome(commands.Cog):
         
         if interaction:
             await interaction.response.send_message(f"Welcome messages enabled in {welcome_channel.mention}.")
-        print(f"Welcome system enabled for guild ID: {guild_id}, channel ID: {welcome_channel.id}")
+        print(f"Welcome system enabled for guild ID: {guild_id}, channel ID: {welcome_channel.id}") # little debugging
 
     @welcome.command(name="disable", description="Disable welcome messages")
     async def welcome_disable(self, interaction: discord.Interaction):

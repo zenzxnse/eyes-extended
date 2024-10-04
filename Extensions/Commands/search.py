@@ -31,6 +31,5 @@ class Ai_Search(commands.Cog):
         if embed:
             await ctx.send(embed=embed)
 
-# Add the cog to the bot
 async def setup(bot):
     await bot.add_cog(Ai_Search(bot))
