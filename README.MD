@@ -15,7 +15,7 @@ Manage roles efficiently with the dropdown role menu feature. Users can select r
 
 ## How It Works
 
-目付き (Eyes) is built using the nextcord library and integrates with the Groq.ai API to generate AI responses. Here's a brief overview of the process:
+目付き (Eyes) is built using the discord library and integrates with the Groq.ai API to generate AI responses. Here's a brief overview of the process:
 
 1. **User Interaction**: Users interact with the bot by sending messages or using slash commands.
 2. **AI Response Generation**: The bot sends the user's message history to the Groq.ai API, which generates a response.
